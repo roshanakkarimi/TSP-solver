@@ -11,12 +11,14 @@ double dist(int i, int j, instance* inst) {
 	return ptdist(&inst->pts[i], &inst->pts[j]);
 } /*dist*/
 
+
 /*managing errors*/
 
 int myError(const char* err, int errType){
 	printf("\nFATAL ERROR:\n%s", err);
 	return errType;
 } /*myError*/
+
 
 /* input elaboration*/
 
@@ -141,3 +143,11 @@ int read_fileIn(instance* inst) {
 	fclose(fileIn);
 	return 0;
 } /*read_fileIn*/
+
+
+/*freeing the memory*/
+
+void freeInst(instance* inst) {
+	free(inst->pts);
+	free(inst);
+} /*freeInst*/
