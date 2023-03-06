@@ -37,12 +37,10 @@ typedef struct {
 	int* best_sol; 
 } instance;	
 
-
 /*utilities*/
 
 double ptdist(point*, point*);
 double dist(int, int, instance*);
-
 
 /*input elaboration*/
 
