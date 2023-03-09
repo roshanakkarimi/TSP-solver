@@ -4,7 +4,7 @@
 /*utilities*/
 
 double ptdist(point* pt1, point* pt2) {
-	return sqrt(pow(pt1->x - pt2->x, 2) + pow(pt1->y - pt2->y, 2));
+	return sqrt(pow(pt1->x - pt2->x, 2) + pow(pt1->y - pt2->y, 2)); /* to be changed using C builtin ecludian function */
 } /*ptdist*/
 
 double dist(int i, int j, instance* inst) {
@@ -143,6 +143,46 @@ int read_fileIn(instance* inst) {
 	fclose(fileIn);
 	return 0;
 } /*read_fileIn*/
+
+/*output procedures*/
+void parse_tsp(instance* inst){
+
+	float *x = malloc(inst->nnodes * sizeof(double));
+	float *y = malloc(inst->nnodes * sizeof(double));
+	for(int i=0; i <= inst->nnodes; i++){
+		x[i] = inst->pts[i].x;
+		y[i] = inst->pts[i].y;
+	}
+	FILE *fp = fopen("data.dat", "w");
+
+	if (fp == NULL) {
+		printf("Error opening file\n");
+		exit(1);
+	}
+
+	for (int i = 0; i < inst->nnodes; i++) {
+		fprintf(fp, "%lf %lf\n", x[i], y[i]);
+	}
+
+	fclose(fp);
+
+    FILE *gnuplotPipe = popen("gnuplot -persistent", "w");
+
+	if (gnuplotPipe == NULL) {
+    	printf("Error opening pipe to gnuplot\n");
+ 	   exit(1);
+	}
+
+	fprintf(gnuplotPipe, "set title \"Plot Title\"\n");
+	fprintf(gnuplotPipe, "set xlabel \"X-axis Label\"\n");
+	fprintf(gnuplotPipe, "set ylabel \"Y-axis Label\"\n");
+	fprintf(gnuplotPipe, "plot 'data.dat' with points pointtype 7 pointsize 1\n");
+
+	pclose(gnuplotPipe);
+	free(x);
+	free(y);
+
+}
 
 
 /*freeing the memory*/

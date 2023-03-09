@@ -27,7 +27,7 @@ typedef struct {
 
 typedef struct {
 /*input data*/
-	int nnodes; 	
+	int nnodes;	
 	point* pts;
 	
 /*parameters*/
@@ -54,5 +54,9 @@ double dist(int, int, instance*);
 
 void parse_cmd(int, char**, instance*);
 int read_fileIn(instance*);
- 
+
+/*output procedures*/
+
+void parse_tsp(instance* inst);
+
 #endif
