@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 /*constants*/
 
@@ -47,12 +48,16 @@ typedef struct {
 /*utilities*/
 
 double ptdist(point*, point*);
-double dist(int, int, instance*);
+double dist(int, int, const instance*);
 
 
 /*input elaboration*/
 
 void parse_cmd(int, char**, instance*);
 int read_fileIn(instance*);
+
+/*output elaboration*/
+
+int write_plotting_script(const instance*);
  
 #endif

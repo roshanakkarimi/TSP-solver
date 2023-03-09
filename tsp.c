@@ -7,7 +7,7 @@ double ptdist(point* pt1, point* pt2) {
 	return sqrt(pow(pt1->x - pt2->x, 2) + pow(pt1->y - pt2->y, 2));
 } /*ptdist*/
 
-double dist(int i, int j, instance* inst) {
+double dist(int i, int j, const instance* inst) {
 	return ptdist(&inst->pts[i], &inst->pts[j]);
 } /*dist*/
 
@@ -85,7 +85,7 @@ int read_fileIn(instance* inst) {
 	bool node_sect = false;
 	
 	FILE* fileIn = fopen(inst->fileIn, "r");
-	if(fileIn == NULL) return myError("Couldn't open the file!", FILE_OPEN_ERR);
+	if(fileIn == NULL) return myError("Couldn't open the input file!", FILE_OPEN_ERR);
 	
 	inst->nnodes = -1;
 
@@ -106,7 +106,8 @@ int read_fileIn(instance* inst) {
 			if(inst->nnodes >= 0) return myError("Repeated DIMENSION section in input file!", FILE_STRUCT_ERR);
 			token1 = strtok(NULL, " :");
 			inst->nnodes = atoi(token1); 
-			inst->pts = malloc(inst->nnodes * sizeof(point));      
+			inst->pts = malloc(inst->nnodes * sizeof(point));
+			assert(inst->pts != NULL);
 			continue;
 		} /*if*/
 		if (strncmp(par_name, "EDGE_WEIGHT_TYPE", 16) == 0) 
@@ -143,6 +144,21 @@ int read_fileIn(instance* inst) {
 	fclose(fileIn);
 	return 0;
 } /*read_fileIn*/
+
+
+/*output elaboration*/
+
+int write_plotting_script(const instance* inst){
+	FILE *script = fopen("gnuplot_out.p", "w");
+	if (script == NULL) return myError("Couldn't open the script!", FILE_OPEN_ERR);
+	
+	fprintf(script, "set terminal qt size 500,500\n");
+	fprintf(script, "plot \"%s\" using 2:3 skip 6 with points\n", inst->fileIn);
+	fprintf(script, "set title \"data example\"\npause -1");
+	
+	fclose(script);
+	return 0;
+} /*write_plotting_script*/
 
 
 /*freeing the memory*/
