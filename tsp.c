@@ -184,6 +184,76 @@ void parse_tsp(instance* inst){
 
 }
 
+void plot_sol(instance* inst, int arr[], int size){
+
+	FILE* gnuplotPipe = popen("gnuplot -persist", "w");
+	fprintf(gnuplotPipe, "set xlabel 'X'\n");
+	fprintf(gnuplotPipe, "set ylabel 'Y'\n");
+
+	fprintf(gnuplotPipe, "plot '-' with points pointtype 7 pointsize 1.5\n");
+	for (int i = 1; i < size; i++) {
+		fprintf(gnuplotPipe, "%lf %lf\n", inst->pts[i].x, inst->pts[i].y);
+	}
+	fprintf(gnuplotPipe, "e\n");
+
+
+
+	// Plot the edges using the "plot" command
+	fprintf(gnuplotPipe, "plot '-' with lines\n");
+	for (int i = 1; i < size ; i++) {
+ 	   fprintf(gnuplotPipe, "%d %d\n", arr[i], arr[i+1]);
+	}
+	fprintf(gnuplotPipe, "e\n");
+
+	// Close the Gnuplot pipe
+	pclose(gnuplotPipe);
+}
+
+/*tsp huristics*/
+void distance_matrix(instance* inst){
+
+	for(int i=0; i<=inst->nnodes; i++){
+		for(int j=0; j<=inst->nnodes; j++){
+			inst->distance_matrix[i][j] = ptdist(&inst->pts[i], &inst->pts[j]);
+		} 
+	}
+
+}
+
+void greedy_solution(instance* inst){
+	
+	distance_matrix(inst);
+	int solution_sequence[48] = {0}; 
+	for (int i=1; i<=inst->nnodes; i++){
+		solution_sequence[i] = i;
+	} /*initialization of the sequence*/
+
+	for (int i=1; i<=inst->nnodes; i++){
+		int tmp;
+		int next_index;
+		double min_dist = INFINITE;
+		for (int j=i+1; j<=inst->nnodes; j++){
+
+			double current_dist = ptdist(&inst->pts[solution_sequence[i]], &inst->pts[solution_sequence[j]]);
+			if( current_dist < min_dist ){
+				next_index = j;
+				min_dist = current_dist;
+			}
+
+		}
+		tmp = i+1;
+		solution_sequence[tmp] = next_index;
+		solution_sequence[next_index] = tmp;
+	} 
+
+	for (int i=1; i<=inst->nnodes; i++){
+		printf("%d,", solution_sequence[i]);
+	}
+
+	plot_sol(inst, solution_sequence, 48);
+
+}
+
 
 /*freeing the memory*/
 

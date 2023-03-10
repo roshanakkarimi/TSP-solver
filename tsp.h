@@ -41,8 +41,8 @@ typedef struct {
 	double tstart;
 	double tbest; /*time for the best solution*/
 	int* best_sol; 
-} instance;	
-
+	double distance_matrix[48][48]; /*needs to be changed*/
+} instance;
 
 /*utilities*/
 
@@ -58,5 +58,10 @@ int read_fileIn(instance*);
 /*output procedures*/
 
 void parse_tsp(instance* inst);
+void plot_sol(instance* inst, int arr[], int size);
+
+/*tsp huristic*/
+void greedy_solution(instance* inst);
+void distance_matrix(instance* inst);
 
 #endif
