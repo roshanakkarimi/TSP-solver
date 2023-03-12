@@ -9,7 +9,8 @@
 
 /*constants*/
 
-#define INFINITE 1e15
+#define INFINITE 1e30
+#define EPSILON 1e-5
 #define DEFAULT_RAND 1
 
 /*errors*/
@@ -31,6 +32,9 @@ typedef struct {
 	int nnodes; 	
 	point* pts;
 	
+/*costs*/
+	double* costs;
+	
 /*parameters*/
 	double timelimit; /*total time limit*/
 	int randseed;
@@ -47,14 +51,14 @@ typedef struct {
 
 /*utilities*/
 
-double ptdist(point*, point*);
-double dist(int, int, const instance*);
+double dist(int, int, const point*);
 
+/*input elaboration and initialization*/
 
-/*input elaboration*/
-
+void initInst(instance*);
 void parse_cmd(int, char**, instance*);
 int read_fileIn(instance*);
+void compute_costs(instance*);
 
 /*output elaboration*/
 

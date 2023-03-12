@@ -3,12 +3,8 @@
 
 /*utilities*/
 
-double ptdist(point* pt1, point* pt2) {
-	return sqrt(pow(pt1->x - pt2->x, 2) + pow(pt1->y - pt2->y, 2));
-} /*ptdist*/
-
-double dist(int i, int j, const instance* inst) {
-	return ptdist(&inst->pts[i], &inst->pts[j]);
+double dist(int i, int j, const point* pts) {
+	return sqrt(pow(pts[i].x - pts[j].x, 2) + pow(pts[i].y - pts[j].y, 2));
 } /*dist*/
 
 
@@ -34,18 +30,22 @@ void dispPars(const instance* inst) {
 	printf(" input file: %s\n", inst->fileIn);
 } /*dispPars*/
 
-void parse_cmd(int argc, char** argv, instance *inst) {
-	int i = 0;
-	bool invalid_opt;
-	strcpy(inst->fileIn, "NOT_SET");
+void initInst(instance *inst) {
+	strcpy(inst->fileIn, "../data/");
 	inst->verbosity = 1;
 	inst->randseed = DEFAULT_RAND;
 	inst->timelimit = INFINITE;
+	inst->zbest = -1;
+} /*initInst*/
+
+void parse_cmd(int argc, char** argv, instance *inst) {
+	int i = 0;
+	bool invalid_opt;
 	while(i < argc - 1) {
 		i++;
 		invalid_opt = true;
 		if(strcmp(argv[i],"-f") == 0){
-			strcpy(inst->fileIn, argv[++i]);
+			strcat(inst->fileIn, argv[++i]);
 			invalid_opt = false;
 			continue;
 		} /*set input file*/
@@ -108,6 +108,8 @@ int read_fileIn(instance* inst) {
 			inst->nnodes = atoi(token1); 
 			inst->pts = malloc(inst->nnodes * sizeof(point));
 			assert(inst->pts != NULL);
+			inst->costs = malloc(inst->nnodes * inst->nnodes * sizeof(double));
+			assert(inst->costs != NULL);
 			continue;
 		} /*if*/
 		if (strncmp(par_name, "EDGE_WEIGHT_TYPE", 16) == 0) 
@@ -145,6 +147,13 @@ int read_fileIn(instance* inst) {
 	return 0;
 } /*read_fileIn*/
 
+void compute_costs(instance* inst){
+	int i, j;
+	for(i = 0; i < inst->nnodes; i++)
+		for(j = 0; j < inst->nnodes; j++)
+			inst->costs[i * inst->nnodes + j] = (i == j) * INFINITE + dist(i, j, inst->pts);
+} /*compute_costs*/
+
 
 /*output elaboration*/
 
@@ -152,9 +161,9 @@ int write_plotting_script(const instance* inst){
 	FILE *script = fopen("gnuplot_out.p", "w");
 	if (script == NULL) return myError("Couldn't open the script!", FILE_OPEN_ERR);
 	
-	fprintf(script, "set terminal qt size 500,500\n");
-	fprintf(script, "plot \"%s\" using 2:3 skip 6 with points\n", inst->fileIn);
-	fprintf(script, "set title \"data example\"\npause -1");
+	fprintf(script, "set terminal qt persist size 500,500\n");
+	fprintf(script, "plot \"../data/%s\" using 2:3 skip 6 with points\n", inst->fileIn);
+	fprintf(script, "set title \"data example\"\n");
 	
 	fclose(script);
 	return 0;
@@ -165,5 +174,6 @@ int write_plotting_script(const instance* inst){
 
 void freeInst(instance* inst) {
 	free(inst->pts);
+	free(inst->costs);
 	free(inst);
 } /*freeInst*/
