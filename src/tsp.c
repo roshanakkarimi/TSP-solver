@@ -7,13 +7,53 @@ double dist(int i, int j, const point* pts) {
 	return sqrt(pow(pts[i].x - pts[j].x, 2) + pow(pts[i].y - pts[j].y, 2));
 } /*dist*/
 
+void swapInt(int* i1, int* i2) {
+	int temp;
+	if(i1 == i2 || (*i2) == (*i1)) return; /*optimization*/
+	temp = *i2;
+	*i2 = *i1;
+	*i1 = temp;
+} /*swapInt*/
 
-/*managing errors*/
+
+/*managing errors and debug*/
 
 int myError(const char* err, int errType){
 	printf("\nFATAL ERROR:\n%s", err);
 	return errType;
 } /*myError*/
+
+bool checkSol(double z, const int* sol, const instance* inst){
+	int i;
+	double z_check = 0;
+	int* count = calloc(inst->nnodes, sizeof(int));
+	assert(count != NULL);
+	for(i = 0; i < inst->nnodes; i++)
+		count[sol[i]]++;
+	for(i = 0; i < inst->nnodes; i++)
+		if(count[i] != 1){
+			free(count);
+			return false;
+		} /*if*/
+	free(count);
+	for(i = 0; i < inst->nnodes; i++)
+		z_check += inst->costs[i * inst->nnodes + sol[i]];
+	if(abs(z_check - z) > EPSILON)
+		return false;
+	return true;
+} /*checkSol*/
+
+
+/*managing solutions*/
+
+void updateBest(double z, const int* sol, instance* inst){
+	int i;
+	if(checkSol(z, sol, inst) && (z < inst->zbest || inst->zbest == -1)) { /*lazy eval.*/
+		inst->zbest = z;
+		for(i = 0; i < inst->nnodes; i++)
+			inst->best_sol[i] = sol[i];
+	} /*if*/
+} /*updateBest*/
 
 
 /* input elaboration*/
@@ -108,6 +148,8 @@ int read_fileIn(instance* inst) {
 			inst->nnodes = atoi(token1); 
 			inst->pts = malloc(inst->nnodes * sizeof(point));
 			assert(inst->pts != NULL);
+			inst->best_sol = malloc(inst->nnodes * sizeof(int));
+			assert(inst->best_sol != NULL);
 			inst->costs = malloc(inst->nnodes * inst->nnodes * sizeof(double));
 			assert(inst->costs != NULL);
 			continue;
@@ -157,23 +199,48 @@ void compute_costs(instance* inst){
 
 /*output elaboration*/
 
-int write_plotting_script(const instance* inst){
+int write_plotting_script(const char* fileOut){
 	FILE *script = fopen("gnuplot_out.p", "w");
-	if (script == NULL) return myError("Couldn't open the script!", FILE_OPEN_ERR);
+	if (script == NULL) return myError("Couldn't create the script!", FILE_OPEN_ERR);
 	
 	fprintf(script, "set terminal qt persist size 500,500\n");
-	fprintf(script, "plot \"../data/%s\" using 2:3 skip 6 with points\n", inst->fileIn);
-	fprintf(script, "set title \"data example\"\n");
+	fprintf(script, "plot \"../out/%s.dat\" using 2:3:1 with labels, \\\n", fileOut);
+	/*fprintf(script, "set title \"data example\"\n");*/
+	fprintf(script, "\"\" skip 51 with linespoints\n", fileOut);
 	
 	fclose(script);
 	return 0;
 } /*write_plotting_script*/
+
+int write_out_file(const instance* inst, const int* sol, const char* fileOut){
+	char fname[100];
+	FILE *out;
+	int i;
+	sprintf(fname, "../out/%s.dat", fileOut);
+	out = fopen(fname, "w");
+	if (out == NULL) return myError("Couldn't create the output file!", FILE_OPEN_ERR);
+	
+	fprintf(out, "#NODES\n");
+	for(i = 0; i < inst->nnodes; i++)
+		fprintf(out, "%d %f %f\n", i, inst->pts[i].x, inst->pts[i].y);
+	fprintf(out, "\n\n#EDGES\n");
+	for(i = 0; i < inst->nnodes - 1; i++){
+		fprintf(out, "%f %f\n", inst->pts[sol[i]].x, inst->pts[sol[i]].y);
+		fprintf(out, "%f %f\n\n", inst->pts[sol[i+1]].x, inst->pts[sol[i+1]].y);
+	} /*for*/
+	fprintf(out, "%f %f\n", inst->pts[sol[i]].x, inst->pts[sol[i]].y); /*edge closing cycle*/
+	fprintf(out, "%f %f", inst->pts[0].x, inst->pts[0].y);
+	
+	fclose(out);
+	return 0;
+} /*write_out_file*/
 
 
 /*freeing the memory*/
 
 void freeInst(instance* inst) {
 	free(inst->pts);
+	free(inst->best_sol);
 	free(inst->costs);
 	free(inst);
 } /*freeInst*/

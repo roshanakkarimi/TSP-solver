@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdbool.h>
 
 /*constants*/
 
@@ -52,6 +53,7 @@ typedef struct {
 /*utilities*/
 
 double dist(int, int, const point*);
+void swapInt(int*, int*);
 
 /*input elaboration and initialization*/
 
@@ -60,8 +62,21 @@ void parse_cmd(int, char**, instance*);
 int read_fileIn(instance*);
 void compute_costs(instance*);
 
+/*managing errors and debug*/
+
+bool checkSol(double, const int*, const instance*);
+
+/*managing solutions*/
+
+void updateBest(double, const int*, instance*);
+
 /*output elaboration*/
 
-int write_plotting_script(const instance*);
+int write_out_file(const instance*, const int*, const char*);
+int write_plotting_script(const char*);
+
+/*memory management*/
+
+void freeInst(instance*);
  
 #endif
