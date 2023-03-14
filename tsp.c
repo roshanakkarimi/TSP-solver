@@ -191,16 +191,14 @@ void plot_sol(instance* inst, int arr[], int size){
 	fprintf(gnuplotPipe, "set ylabel 'Y'\n");
 
 	fprintf(gnuplotPipe, "plot '-' with points pointtype 7 pointsize 1.5\n");
-	for (int i = 1; i < size; i++) {
+	for (int i = 0; i < size; i++) {
 		fprintf(gnuplotPipe, "%lf %lf\n", inst->pts[i].x, inst->pts[i].y);
 	}
 	fprintf(gnuplotPipe, "e\n");
 
-
-
 	// Plot the edges using the "plot" command
 	fprintf(gnuplotPipe, "plot '-' with lines\n");
-	for (int i = 1; i < size ; i++) {
+	for (int i = 0; i < size ; i++) {
  	   fprintf(gnuplotPipe, "%d %d\n", arr[i], arr[i+1]);
 	}
 	fprintf(gnuplotPipe, "e\n");
@@ -212,45 +210,58 @@ void plot_sol(instance* inst, int arr[], int size){
 /*tsp huristics*/
 void distance_matrix(instance* inst){
 
-	for(int i=0; i<=inst->nnodes; i++){
-		for(int j=0; j<=inst->nnodes; j++){
-			inst->distance_matrix[i][j] = ptdist(&inst->pts[i], &inst->pts[j]);
+	double** distance_matrix = (double **)malloc(sizeof(double) * inst->nnodes);
+	for ( int i =0; i<inst->nnodes; i++){
+		distance_matrix[i] = (double *)malloc(sizeof(double) * inst->nnodes);
+	}
+
+	for(int i=0; i< inst->nnodes; i++){
+		for(int j=0; j< inst->nnodes; j++){
+			distance_matrix[i][j] = ptdist(&inst->pts[i], &inst->pts[j]);
 		} 
 	}
+
+	inst->distance_matrix = distance_matrix;
 
 }
 
 void greedy_solution(instance* inst){
 	
-	distance_matrix(inst);
-	int solution_sequence[48] = {0}; 
-	for (int i=1; i<=inst->nnodes; i++){
+	int tmp;
+	double current_dist;
+	int* solution_sequence = malloc(sizeof(int) * inst->nnodes); 
+
+	for (int i=0; i<inst->nnodes; i++){
 		solution_sequence[i] = i;
 	} /*initialization of the sequence*/
-
-	for (int i=1; i<=inst->nnodes; i++){
-		int tmp;
-		int next_index;
+	
+	distance_matrix(inst); // to move to the initialization
+	
+	for (int i=0; i<inst->nnodes; i++){
+		int best_index;
 		double min_dist = INFINITE;
-		for (int j=i+1; j<=inst->nnodes; j++){
 
-			double current_dist = ptdist(&inst->pts[solution_sequence[i]], &inst->pts[solution_sequence[j]]);
-			if( current_dist < min_dist ){
-				next_index = j;
+		if ( i==inst->nnodes-1 ){
+			solution_sequence[i] = 0;
+			break;
+		}
+
+		for (int j=i+1; j<inst->nnodes; j++){
+
+			current_dist = inst->distance_matrix[i][j];
+
+			if (current_dist < min_dist ){
+				best_index = j;
 				min_dist = current_dist;
 			}
 
 		}
-		tmp = i+1;
-		solution_sequence[tmp] = next_index;
-		solution_sequence[next_index] = tmp;
+		tmp = solution_sequence[i+1];
+		solution_sequence[i+1] = solution_sequence[best_index];
+		solution_sequence[best_index] = tmp;
 	} 
 
-	for (int i=1; i<=inst->nnodes; i++){
-		printf("%d,", solution_sequence[i]);
-	}
-
-	plot_sol(inst, solution_sequence, 48);
+	plot_sol(inst, solution_sequence, inst->nnodes);
 
 }
 

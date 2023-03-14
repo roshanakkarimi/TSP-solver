@@ -41,7 +41,7 @@ typedef struct {
 	double tstart;
 	double tbest; /*time for the best solution*/
 	int* best_sol; 
-	double distance_matrix[48][48]; /*needs to be changed*/
+	double** distance_matrix; /*needs to be changed*/
 } instance;
 
 /*utilities*/
