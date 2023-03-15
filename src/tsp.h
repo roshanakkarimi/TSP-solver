@@ -11,7 +11,7 @@
 /*constants*/
 
 #define INFINITE 1e30
-#define EPSILON 1e-5
+#define EPSILON 0.00001
 #define DEFAULT_RAND 1
 
 /*errors*/
@@ -39,6 +39,7 @@ typedef struct {
 /*parameters*/
 	double timelimit; /*total time limit*/
 	int randseed;
+	int n_sim;
 	char verbosity;
 	char fileIn[100];
 	
@@ -47,13 +48,19 @@ typedef struct {
 	double tstart;
 	double tbest; /*time for the best solution*/
 	int* best_sol; 
+	int best_prob;
 } instance;	
 
 
-/*utilities*/
+/*generic utilities*/
+
+void swapInt(int*, int*);
+void swapDouble(double*, double*);
+
+/*distance utilities*/
 
 double dist(int, int, const point*);
-void swapInt(int*, int*);
+double minDist(int, int*, const instance*);
 
 /*input elaboration and initialization*/
 

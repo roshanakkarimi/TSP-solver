@@ -15,6 +15,29 @@ void swapInt(int* i1, int* i2) {
 	*i1 = temp;
 } /*swapInt*/
 
+void swapDouble(double* d1, double* d2) {
+	double temp;
+	if(d1 == d2 || fabs((*d2) - (*d1)) < EPSILON) return; /*optimization*/
+	temp = *d2;
+	*d2 = *d1;
+	*d1 = temp;
+} /*swapInt*/
+
+double minDist(int i, int* sol, const instance* inst) {
+	int j, indMin;
+	double dj;
+	int last = sol[i];
+	double minDist = inst->costs[last * inst->nnodes + sol[i + 1]];
+	indMin = i + 1;
+	for(j = i + 2; j < inst->nnodes; j++)
+		if((dj = inst->costs[last * inst->nnodes + sol[j]]) < minDist){
+			indMin = j;
+			minDist = dj;
+		} /*if*/
+	swapInt(sol + i + 1, sol + indMin);
+	return minDist;
+} /*minDist*/
+
 
 /*managing errors and debug*/
 
@@ -32,14 +55,18 @@ bool checkSol(double z, const int* sol, const instance* inst){
 		count[sol[i]]++;
 	for(i = 0; i < inst->nnodes; i++)
 		if(count[i] != 1){
+			printf("Wrong: node %d counted %d times\n", i , count[i]);
 			free(count);
 			return false;
 		} /*if*/
 	free(count);
-	for(i = 0; i < inst->nnodes; i++)
-		z_check += inst->costs[i * inst->nnodes + sol[i]];
-	if(abs(z_check - z) > EPSILON)
+	for(i = 0; i < inst->nnodes - 1; i++)
+		z_check += inst->costs[sol[i] * inst->nnodes + sol[i + 1]];
+	z_check += inst->costs[sol[i]];
+	if(fabs(z_check - z) > EPSILON){
+		printf("Wrong: difference between solution and check value %f\n", fabs(z_check - z));
 		return false;
+	} /*if*/
 	return true;
 } /*checkSol*/
 
@@ -48,11 +75,14 @@ bool checkSol(double z, const int* sol, const instance* inst){
 
 void updateBest(double z, const int* sol, instance* inst){
 	int i;
-	if(checkSol(z, sol, inst) && (z < inst->zbest || inst->zbest == -1)) { /*lazy eval.*/
+	if(checkSol(z, sol, inst)){ 
+		if(z < inst->zbest || inst->zbest == -1) {
 		inst->zbest = z;
 		for(i = 0; i < inst->nnodes; i++)
 			inst->best_sol[i] = sol[i];
+		} /*if*/
 	} /*if*/
+	else printf("Solution is not acceptable!\n");
 } /*updateBest*/
 
 
@@ -76,6 +106,7 @@ void initInst(instance *inst) {
 	inst->randseed = DEFAULT_RAND;
 	inst->timelimit = INFINITE;
 	inst->zbest = -1;
+	inst->n_sim = 1;
 } /*initInst*/
 
 void parse_cmd(int argc, char** argv, instance *inst) {
@@ -99,6 +130,11 @@ void parse_cmd(int argc, char** argv, instance *inst) {
 			invalid_opt = false;
 			continue;
 		} /*set random seed*/
+		if(strcmp(argv[i],"-ns") == 0){
+			inst->n_sim = abs(atoi(argv[++i])); 
+			invalid_opt = false;
+			continue;
+		} /*set number of simulations*/
 		if(strcmp(argv[i],"-v") == 0){
 			inst->verbosity = atoi(argv[++i]);
 			invalid_opt = false;

@@ -1,20 +1,5 @@
 #include "tsp.h"
 
-double minDist(int i, int* sol, const instance* inst) {
-	int j, indMin;
-	double dj;
-	double minDist = inst->costs[sol[i] * inst->nnodes + sol[i + 1]];
-	indMin = i + 1;
-	for(j = i + 2; j < inst->nnodes; j++)
-		if((dj = inst->costs[sol[i] * inst->nnodes + sol[j]]) < minDist){
-			indMin = j;
-			minDist = dj;
-		} /*if*/
-	swapInt(sol + i + 1, sol + indMin);
-	return minDist;
-} /*minDist*/
-
-
 int main(int argc, char **argv)
 {
 	int* sol;
@@ -34,11 +19,15 @@ int main(int argc, char **argv)
 		sol[i] = i;
 	for(i = 0; i < inst->nnodes - 1; i++)
         z += minDist(i, sol, inst);
+	z += inst->costs[sol[i]];
 	updateBest(z, sol, inst);
 	
-	write_out_file(inst, sol, "h_greedy");
+	write_out_file(inst, inst->best_sol, "h_greedy");
     write_plotting_script("h_greedy");
     system("gnuplot gnuplot_out.p");
+	/*printf("z = %f\n", z);
+	for(i = 0; i < inst->nnodes; i++)
+		printf("%d, %s", sol[i], (((i+1)%4==0) ? "\n" : ""));*/
 	
 	free(sol);
 	freeInst(inst);
