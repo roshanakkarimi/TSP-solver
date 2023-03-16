@@ -1,5 +1,6 @@
 #include "tsp.h"
 #include <stdbool.h>
+#include <stdlib.h>
 
 /*utilities*/
 
@@ -140,66 +141,24 @@ int read_fileIn(instance* inst) {
 		
 	} /*while*/
 	
+	/*initializing distance matrix*/
+	calc_distance_matrix(inst);
+
 	fclose(fileIn);
 	return 0;
 } /*read_fileIn*/
 
 /*output procedures*/
-void parse_tsp(instance* inst){
 
-	float *x = malloc(inst->nnodes * sizeof(double));
-	float *y = malloc(inst->nnodes * sizeof(double));
-	for(int i=0; i <= inst->nnodes; i++){
-		x[i] = inst->pts[i].x;
-		y[i] = inst->pts[i].y;
-	}
-	FILE *fp = fopen("data.dat", "w");
-
-	if (fp == NULL) {
-		printf("Error opening file\n");
-		exit(1);
-	}
-
-	for (int i = 0; i < inst->nnodes; i++) {
-		fprintf(fp, "%lf %lf\n", x[i], y[i]);
-	}
-
-	fclose(fp);
-
-    FILE *gnuplotPipe = popen("gnuplot -persistent", "w");
-
-	if (gnuplotPipe == NULL) {
-    	printf("Error opening pipe to gnuplot\n");
- 	   exit(1);
-	}
-
-	fprintf(gnuplotPipe, "set title \"Plot Title\"\n");
-	fprintf(gnuplotPipe, "set xlabel \"X-axis Label\"\n");
-	fprintf(gnuplotPipe, "set ylabel \"Y-axis Label\"\n");
-	fprintf(gnuplotPipe, "plot 'data.dat' with points pointtype 7 pointsize 1\n");
-
-	pclose(gnuplotPipe);
-	free(x);
-	free(y);
-
-}
-
-void plot_sol(instance* inst, int arr[], int size){
+void plot_sol(instance* inst, int arr[], int size) {
 
 	FILE* gnuplotPipe = popen("gnuplot -persist", "w");
 	fprintf(gnuplotPipe, "set xlabel 'X'\n");
 	fprintf(gnuplotPipe, "set ylabel 'Y'\n");
 
-	fprintf(gnuplotPipe, "plot '-' with points pointtype 7 pointsize 1.5\n");
-	for (int i = 0; i < size; i++) {
-		fprintf(gnuplotPipe, "%lf %lf\n", inst->pts[i].x, inst->pts[i].y);
-	}
-	fprintf(gnuplotPipe, "e\n");
-
-	// Plot the edges using the "plot" command
-	fprintf(gnuplotPipe, "plot '-' with lines\n");
-	for (int i = 0; i < size ; i++) {
- 	   fprintf(gnuplotPipe, "%d %d\n", arr[i], arr[i+1]);
+	fprintf(gnuplotPipe, "plot '-' using 2:3:1 with linespoints\n");
+	for (int i = 0; i <= size; i++) {
+		fprintf(gnuplotPipe, "%d %lf %lf\n", i, inst->pts[arr[i]].x, inst->pts[arr[i]].y);
 	}
 	fprintf(gnuplotPipe, "e\n");
 
@@ -207,11 +166,19 @@ void plot_sol(instance* inst, int arr[], int size){
 	pclose(gnuplotPipe);
 }
 
+double solution_value(instance* inst, int arr[]) {
+	double total_cost = 0;
+	for ( int i=0; i<inst->nnodes; i++){
+		total_cost += inst->distance_matrix[arr[i]][arr[i+1]];
+	}
+	return total_cost;
+}
+
 /*tsp huristics*/
-void distance_matrix(instance* inst){
+void calc_distance_matrix(instance* inst) {
 
 	double** distance_matrix = (double **)malloc(sizeof(double) * inst->nnodes);
-	for ( int i =0; i<inst->nnodes; i++){
+	for ( int i =0; i< inst->nnodes; i++){
 		distance_matrix[i] = (double *)malloc(sizeof(double) * inst->nnodes);
 	}
 
@@ -223,33 +190,31 @@ void distance_matrix(instance* inst){
 
 	inst->distance_matrix = distance_matrix;
 
+	/*for (int i = 0; i < inst->nnodes; i++) {
+		for ( int j=0; j < inst->nnodes; j++){
+			free(distance_matrix[i]);
+		}
+    } */
 }
 
-void greedy_solution(instance* inst){
+void greedy(instance* inst) {
 	
 	int tmp;
 	double current_dist;
-	int* solution_sequence = malloc(sizeof(int) * inst->nnodes); 
+	int* solution_sequence = malloc(sizeof(int) * inst->nnodes + 1); 
 
-	for (int i=0; i<inst->nnodes; i++){
+	for (int i=0; i < inst->nnodes; i++){
 		solution_sequence[i] = i;
-	} /*initialization of the sequence*/
-	
-	distance_matrix(inst); // to move to the initialization
-	
-	for (int i=0; i<inst->nnodes; i++){
+	} /*initialization of the solution sequence*/
+		
+	for (int i=0; i < inst->nnodes -1; i++){
+
 		int best_index;
 		double min_dist = INFINITE;
 
-		if ( i==inst->nnodes-1 ){
-			solution_sequence[i] = 0;
-			break;
-		}
+		for (int j=i+1; j < inst->nnodes; j++){
 
-		for (int j=i+1; j<inst->nnodes; j++){
-
-			current_dist = inst->distance_matrix[i][j];
-
+			current_dist = inst->distance_matrix[solution_sequence[i]][solution_sequence[j]];
 			if (current_dist < min_dist ){
 				best_index = j;
 				min_dist = current_dist;
@@ -259,12 +224,21 @@ void greedy_solution(instance* inst){
 		tmp = solution_sequence[i+1];
 		solution_sequence[i+1] = solution_sequence[best_index];
 		solution_sequence[best_index] = tmp;
-	} 
+	}
 
+	solution_sequence[inst->nnodes] = solution_sequence[0];
 	plot_sol(inst, solution_sequence, inst->nnodes);
+	solution_value(inst, solution_sequence);
 
+	/*print outputs*/
+	printf("%f,", solution_value(inst, solution_sequence));
+	for (int i=0; i<= inst->nnodes; i++){
+		printf("%d,", solution_sequence[i]);
+	}
+	/*end*/
+	
+	free(solution_sequence);
 }
-
 
 /*freeing the memory*/
 

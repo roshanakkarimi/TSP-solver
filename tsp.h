@@ -56,12 +56,11 @@ void parse_cmd(int, char**, instance*);
 int read_fileIn(instance*);
 
 /*output procedures*/
-
-void parse_tsp(instance* inst);
 void plot_sol(instance* inst, int arr[], int size);
 
 /*tsp huristic*/
-void greedy_solution(instance* inst);
-void distance_matrix(instance* inst);
+void greedy(instance* inst);
+void calc_distance_matrix(instance* inst);
+double extra_mileage(instance* inst);
 
 #endif
