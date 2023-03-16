@@ -4,7 +4,11 @@
 /*utilities*/
 
 double dist(int i, int j, const point* pts) {
-	return sqrt(pow(pts[i].x - pts[j].x, 2) + pow(pts[i].y - pts[j].y, 2));
+	return sqrt(sq_dist(i, j, pts));
+} /*dist*/
+
+double sq_dist(int i, int j, const point* pts) {
+	return pow(pts[i].x - pts[j].x, 2) + pow(pts[i].y - pts[j].y, 2);
 } /*dist*/
 
 void swapInt(int* i1, int* i2) {
@@ -23,20 +27,22 @@ void swapDouble(double* d1, double* d2) {
 	*d1 = temp;
 } /*swapInt*/
 
-double minDist(int i, int* sol, const instance* inst) {
+/*returns minCost of still possible edges involving node sol[i].
+Puts the other node of selected edge in sol[i+1] by a swapping operation.*/
+double minCost(int i, int* sol, const instance* inst) {
 	int j, indMin;
 	double dj;
 	int last = sol[i];
-	double minDist = inst->costs[last * inst->nnodes + sol[i + 1]];
+	double minCost = inst->costs[last * inst->nnodes + sol[i + 1]];
 	indMin = i + 1;
 	for(j = i + 2; j < inst->nnodes; j++)
-		if((dj = inst->costs[last * inst->nnodes + sol[j]]) < minDist){
+		if((dj = inst->costs[last * inst->nnodes + sol[j]]) < minCost){
 			indMin = j;
-			minDist = dj;
+			minCost = dj;
 		} /*if*/
 	swapInt(sol + i + 1, sol + indMin);
-	return minDist;
-} /*minDist*/
+	return minCost;
+} /*minCost*/
 
 
 /*managing errors and debug*/
@@ -89,7 +95,9 @@ void updateBest(double z, const int* sol, instance* inst){
 /* input elaboration*/
 
 void cmdHelp() {
-	printf("\n--Available options:--\n -f to set input file \n -tl to set overall time limit\n -rs to set random seed\n -help to see options\n");
+	printf("\n--Available options:--\n -f to set input file \n -tl to set overall time limit\n");
+	printf(" -rs to set random seed\n -test to run in test mode\n -m to set solving algorithm (lowercase)\n");
+    printf(" -ns to set number of runs to perform (only with -test opt.)\n -p to set probability\n -help to see options\n");
 } /*help*/
 
 void dispPars(const instance* inst) {
@@ -98,6 +106,7 @@ void dispPars(const instance* inst) {
 	printf(" randseed: %d\n", inst->randseed);
 	printf(" verbosity level: %d\n", inst->verbosity);
 	printf(" input file: %s\n", inst->fileIn);
+	printf(" probability: %d\n", inst->prob);
 } /*dispPars*/
 
 void initInst(instance *inst) {
@@ -107,11 +116,13 @@ void initInst(instance *inst) {
 	inst->timelimit = INFINITE;
 	inst->zbest = -1;
 	inst->n_sim = 1;
+	inst->prob = 100;
 } /*initInst*/
 
-void parse_cmd(int argc, char** argv, instance *inst) {
+bool parse_cmd(int argc, char** argv, instance *inst) {
 	int i = 0;
 	bool invalid_opt;
+	bool test = false;
 	while(i < argc - 1) {
 		i++;
 		invalid_opt = true;
@@ -120,6 +131,14 @@ void parse_cmd(int argc, char** argv, instance *inst) {
 			invalid_opt = false;
 			continue;
 		} /*set input file*/
+		if(strcmp(argv[i],"-m") == 0){
+			if(strcmp(argv[++i], "greedy") == 0)
+				inst->mode = GREEDY;
+			else if(strcmp(argv[++i], "grasp") == 0)
+				inst->mode = GRASP;
+			invalid_opt = false;
+			continue;
+		} /*set algorithm to solve inst.*/
 		if(strcmp(argv[i],"-tl") == 0 ){ 
 			inst->timelimit = atof(argv[++i]);
 			invalid_opt = false;
@@ -135,20 +154,26 @@ void parse_cmd(int argc, char** argv, instance *inst) {
 			invalid_opt = false;
 			continue;
 		} /*set number of simulations*/
+		if(strcmp(argv[i],"-p") == 0){
+			inst->prob = abs(atoi(argv[++i])); 
+			invalid_opt = false;
+			continue;
+		} /*set probability*/
 		if(strcmp(argv[i],"-v") == 0){
 			inst->verbosity = atoi(argv[++i]);
 			invalid_opt = false;
 			continue;
 		} /*set verbosity param.*/
-		if(strcmp(argv[i],"-disp") == 0) {
-			dispPars(inst);
+		if(strcmp(argv[i], "-test") == 0){
+			test = true;
 			invalid_opt = false;
 			continue;
-		} /*print the values of the parameters*/
+		} /*test mod.*/
 		if(strcmp(argv[i],"-help") == 0) invalid_opt = false;
 		else if(invalid_opt) printf("\nINVALID OPTION:");
 		cmdHelp();
 	} /*while*/
+	return test;
 } /*parse_cmd*/
 
 int read_fileIn(instance* inst) {
@@ -225,24 +250,24 @@ int read_fileIn(instance* inst) {
 	return 0;
 } /*read_fileIn*/
 
-void compute_costs(instance* inst){
+void compute_costs(instance* inst, cost fc){
 	int i, j;
 	for(i = 0; i < inst->nnodes; i++)
 		for(j = 0; j < inst->nnodes; j++)
-			inst->costs[i * inst->nnodes + j] = (i == j) * INFINITE + dist(i, j, inst->pts);
+			inst->costs[i * inst->nnodes + j] = (i == j) * INFINITE + fc(i, j, inst->pts);
 } /*compute_costs*/
 
 
 /*output elaboration*/
 
-int write_plotting_script(const char* fileOut){
+int write_plotting_script(const char* fileOut, int nnodes){
 	FILE *script = fopen("gnuplot_out.p", "w");
 	if (script == NULL) return myError("Couldn't create the script!", FILE_OPEN_ERR);
 	
 	fprintf(script, "set terminal qt persist size 500,500\n");
 	fprintf(script, "plot \"../out/%s.dat\" using 2:3:1 with labels, \\\n", fileOut);
 	/*fprintf(script, "set title \"data example\"\n");*/
-	fprintf(script, "\"\" skip 51 with linespoints\n", fileOut);
+	fprintf(script, "\"\" skip %d with linespoints\n", nnodes + 3);
 	
 	fclose(script);
 	return 0;
@@ -265,7 +290,7 @@ int write_out_file(const instance* inst, const int* sol, const char* fileOut){
 		fprintf(out, "%f %f\n\n", inst->pts[sol[i+1]].x, inst->pts[sol[i+1]].y);
 	} /*for*/
 	fprintf(out, "%f %f\n", inst->pts[sol[i]].x, inst->pts[sol[i]].y); /*edge closing cycle*/
-	fprintf(out, "%f %f", inst->pts[0].x, inst->pts[0].y);
+	fprintf(out, "%f %f", inst->pts[sol[0]].x, inst->pts[sol[0]].y);
 	
 	fclose(out);
 	return 0;
