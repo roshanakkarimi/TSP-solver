@@ -21,6 +21,11 @@
 #define FORMAT_ERR 3
 #define INDEX_ERR 4
 
+/*heur. modes*/
+
+#define GREEDY 0
+#define GRASP 1
+
 /*data structures*/
 
 typedef struct {
@@ -40,6 +45,8 @@ typedef struct {
 	double timelimit; /*total time limit*/
 	int randseed;
 	int n_sim;
+	int prob; /*probability*/
+	int mode;
 	char verbosity;
 	char fileIn[100];
 	
@@ -51,23 +58,28 @@ typedef struct {
 	int best_prob;
 } instance;	
 
+/*generic functions*/
+
+typedef double (*cost)(int ind1, int ind2, const point* pts);
+typedef double (*node_picker)(int i, int nearest_prob, int* sol, const instance* inst);
 
 /*generic utilities*/
 
 void swapInt(int*, int*);
 void swapDouble(double*, double*);
 
-/*distance utilities*/
+/*cost utilities*/
 
 double dist(int, int, const point*);
-double minDist(int, int*, const instance*);
+double sq_dist(int, int, const point*);
+double minCost(int, int*, const instance*);
 
 /*input elaboration and initialization*/
 
 void initInst(instance*);
-void parse_cmd(int, char**, instance*);
+bool parse_cmd(int, char**, instance*);
 int read_fileIn(instance*);
-void compute_costs(instance*);
+void compute_costs(instance*, cost);
 
 /*managing errors and debug*/
 
@@ -80,7 +92,7 @@ void updateBest(double, const int*, instance*);
 /*output elaboration*/
 
 int write_out_file(const instance*, const int*, const char*);
-int write_plotting_script(const char*);
+int write_plotting_script(const char*, int);
 
 /*memory management*/
 
