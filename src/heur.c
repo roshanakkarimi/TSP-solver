@@ -100,6 +100,7 @@ int main(int argc, char **argv)
 	
 	double impr;
 	int* sol;
+	int ord = 0;
 	instance* inst = malloc(sizeof(instance));
 	assert(inst != NULL);
 	sol = malloc(inst->nnodes * sizeof(int));
@@ -109,18 +110,19 @@ int main(int argc, char **argv)
     parse_cmd(argc, argv, inst);
 	read_fileIn(inst);
 	compute_costs(inst, (cost)sq_dist);
-	
-	write_plotting_script("h_GRASP", inst->nnodes);
-	
+		
 	solve(inst, sol, inst->prob, inst->randseed, (node_picker)pickers[inst->mode]);
+	write_plotting_script("h_GRASP", inst->nnodes, ord++);
+	write_out_file(inst, sol, "h_GRASP", "w");
+	
 	if(inst->two_opt) while((impr = two_opt(inst, sol))) {
 		updateBest(inst->zbest - impr, sol, inst);
-		write_out_file(inst, sol, "h_GRASP");
-		system("gnuplot gnuplot_out.p");
+		write_out_file(inst, sol, "h_GRASP", "a");
+		write_plotting_script("h_GRASP", inst->nnodes, ord++);
 	} /*while*/
 	
 	printf("Best sol.: %f\n", inst->zbest);
-	
+	system("gnuplot gnuplot_out.p");
 	
 	free(sol);
 	freeInst(inst);

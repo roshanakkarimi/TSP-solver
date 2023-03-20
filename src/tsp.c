@@ -97,6 +97,7 @@ void updateBest(double z, const int* sol, instance* inst){
 void cmdHelp() {
 	printf("\n--Available options:--\n -f to set input file \n -tl to set overall time limit\n");
 	printf(" -rs to set random seed\n -test to run in test mode\n -m to set solving algorithm (lowercase)\n");
+	printf(" -two to apply two opt. alg. to refine the solution\n");
     printf(" -ns to set number of runs to perform (only with -test opt.)\n -p to set probability\n -help to see options\n");
 } /*help*/
 
@@ -117,6 +118,7 @@ void initInst(instance *inst) {
 	inst->zbest = -1;
 	inst->n_sim = 1;
 	inst->prob = 100;
+	inst->two_opt = false;
 } /*initInst*/
 
 bool parse_cmd(int argc, char** argv, instance *inst) {
@@ -134,7 +136,7 @@ bool parse_cmd(int argc, char** argv, instance *inst) {
 		if(strcmp(argv[i],"-m") == 0){
 			if(strcmp(argv[++i], "greedy") == 0)
 				inst->mode = GREEDY;
-			else if(strcmp(argv[++i], "grasp") == 0)
+			else if(strcmp(argv[i], "grasp") == 0)
 				inst->mode = GRASP;
 			invalid_opt = false;
 			continue;
@@ -169,6 +171,11 @@ bool parse_cmd(int argc, char** argv, instance *inst) {
 			invalid_opt = false;
 			continue;
 		} /*test mod.*/
+		if(strcmp(argv[i], "-two") == 0){
+			inst->two_opt = true;
+			invalid_opt = false;
+			continue;
+		} /*use two opt. alg.*/
 		if(strcmp(argv[i],"-help") == 0) invalid_opt = false;
 		else if(invalid_opt) printf("\nINVALID OPTION:");
 		cmdHelp();
@@ -260,31 +267,38 @@ void compute_costs(instance* inst, cost fc){
 
 /*output elaboration*/
 
-int write_plotting_script(const char* fileOut, int nnodes){
-	FILE *script = fopen("gnuplot_out.p", "w");
+int write_plotting_script(const char* fileOut, int nnodes, int ord){
+	FILE *script = fopen("gnuplot_out.p", ((ord == 0) ? "w" : "a"));
 	if (script == NULL) return myError("Couldn't create the script!", FILE_OPEN_ERR);
 	
-	fprintf(script, "set terminal qt persist size 500,500\n");
-	fprintf(script, "plot \"../out/%s.dat\" using 2:3:1 with labels, \\\n", fileOut);
-	/*fprintf(script, "set title \"data example\"\n");*/
-	fprintf(script, "\"\" skip %d with linespoints\n", nnodes + 3);
+	if(ord == 0){
+		fprintf(script, "set terminal qt persist size 500,500\n");
+		fprintf(script, "set key off\n");
+		fprintf(script, "plot \"../out/%s.dat\" index 0 using 2:3:1 with labels\n", fileOut);
+	}
+	/*fprintf(script, ", \\\n\"\" skip %d with linespoints lc rgb %d\n", 3 + (3 * ord + 1) * nnodes, 2000 * ord);*/
+    /*fprintf(script, "replot \"../out/%s.dat\" skip %d with lines lc rgbcolor %d\n", fileOut, 3 + (3 * ord + 1) * nnodes, 101101 * ord);*/
+	if(ord) fprintf(script, "replot \"../out/%s.dat\" index %d with lines lc rgbcolor 16777215 lw 3\n", fileOut, ord);
+	fprintf(script, "replot \"../out/%s.dat\" index %d with lines lc rgb 0\n", fileOut, ord + 1);
+	fprintf(script, "pause 1\n");
 	
 	fclose(script);
 	return 0;
 } /*write_plotting_script*/
 
-int write_out_file(const instance* inst, const int* sol, const char* fileOut){
+int write_out_file(const instance* inst, const int* sol, const char* fileOut, const char* mode){
 	char fname[100];
 	FILE *out;
 	int i;
 	sprintf(fname, "../out/%s.dat", fileOut);
-	out = fopen(fname, "w");
-	if (out == NULL) return myError("Couldn't create the output file!", FILE_OPEN_ERR);
-	
-	fprintf(out, "#NODES\n");
-	for(i = 0; i < inst->nnodes; i++)
-		fprintf(out, "%d %f %f\n", i, inst->pts[i].x, inst->pts[i].y);
-	fprintf(out, "\n\n#EDGES\n");
+	out = fopen(fname, mode);
+	if(out == NULL) return myError("Couldn't create the output file!", FILE_OPEN_ERR);
+	if(strcmp(mode, "w") == 0){
+		fprintf(out, "#NODES\n");
+		for(i = 0; i < inst->nnodes; i++)
+			fprintf(out, "%d %f %f\n", i, inst->pts[i].x, inst->pts[i].y);
+	} /*if*/
+	fprintf(out, "\n\n\n#EDGES\n");
 	for(i = 0; i < inst->nnodes - 1; i++){
 		fprintf(out, "%f %f\n", inst->pts[sol[i]].x, inst->pts[sol[i]].y);
 		fprintf(out, "%f %f\n\n", inst->pts[sol[i+1]].x, inst->pts[sol[i+1]].y);

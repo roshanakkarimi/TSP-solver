@@ -7,10 +7,12 @@
 #include <string.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <time.h>
+#include <limits.h>
 
 /*constants*/
 
-#define INFINITE 1e30
+#define INFINITE LONG_MAX
 #define EPSILON 0.00001
 #define DEFAULT_RAND 1
 
@@ -42,18 +44,18 @@ typedef struct {
 	double* costs;
 	
 /*parameters*/
-	double timelimit; /*total time limit*/
+	long timelimit; /*total time limit*/
 	int randseed;
 	int n_sim;
 	int prob; /*probability*/
 	int mode;
 	char verbosity;
 	char fileIn[100];
+	bool two_opt;
 	
 /*results*/
 	double zbest; /*best value for the obj. function*/
-	double tstart;
-	double tbest; /*time for the best solution*/
+	int tbest; /*time for the best solution*/
 	int* best_sol; 
 	int best_prob;
 } instance;	
@@ -91,8 +93,8 @@ void updateBest(double, const int*, instance*);
 
 /*output elaboration*/
 
-int write_out_file(const instance*, const int*, const char*);
-int write_plotting_script(const char*, int);
+int write_out_file(const instance*, const int*, const char*, const char*);
+int write_plotting_script(const char*, int, int);
 
 /*memory management*/
 
