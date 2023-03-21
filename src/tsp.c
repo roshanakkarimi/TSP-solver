@@ -53,24 +53,24 @@ int myError(const char* err, int errType){
 } /*myError*/
 
 bool checkSol(double z, const int* sol, const instance* inst){
-	int i;
+	int i, n = inst->nnodes;
 	double z_check = 0;
-	int* count = calloc(inst->nnodes, sizeof(int));
+	int* count = calloc(n, sizeof(int));
 	assert(count != NULL);
-	for(i = 0; i < inst->nnodes; i++)
+	for(i = 0; i < n; i++)
 		count[sol[i]]++;
-	for(i = 0; i < inst->nnodes; i++)
+	for(i = 0; i < n; i++)
 		if(count[i] != 1){
 			printf("Wrong: node %d counted %d times\n", i , count[i]);
 			free(count);
 			return false;
 		} /*if*/
 	free(count);
-	for(i = 0; i < inst->nnodes - 1; i++)
-		z_check += inst->costs[sol[i] * inst->nnodes + sol[i + 1]];
-	z_check += inst->costs[sol[i]];
+	for(i = 0; i < n - 1; i++)
+		z_check += inst->costs[sol[i] * n + sol[i + 1]];
+	z_check += inst->costs[sol[i] * n + sol[0]];
 	if(fabs(z_check - z) > EPSILON){
-		printf("Wrong: difference between solution and check value %f\n", fabs(z_check - z));
+		printf("Wrong: z_check = %f while z = %f\n", z_check, z);
 		return false;
 	} /*if*/
 	return true;
@@ -88,14 +88,14 @@ void updateBest(double z, const int* sol, instance* inst){
 			inst->best_sol[i] = sol[i];
 		} /*if*/
 	} /*if*/
-	else printf("Solution is not acceptable!\n");
+	/*else printf("Solution is not acceptable!\n");*/
 } /*updateBest*/
 
 
 /* input elaboration*/
 
 void cmdHelp() {
-	printf("\n--Available options:--\n -f to set input file \n -tl to set overall time limit\n");
+	printf("\n--Available options:--\n -f to set input file (.tsp, not to be specified)\n -tl to set overall time limit\n");
 	printf(" -rs to set random seed\n -test to run in test mode\n -m to set solving algorithm (lowercase)\n");
 	printf(" -two to apply two opt. alg. to refine the solution\n");
     printf(" -ns to set number of runs to perform (only with -test opt.)\n -p to set probability\n -help to see options\n");
@@ -106,19 +106,19 @@ void dispPars(const instance* inst) {
 	printf(" time limit: %f\n", inst->timelimit);
 	printf(" randseed: %d\n", inst->randseed);
 	printf(" verbosity level: %d\n", inst->verbosity);
-	printf(" input file: %s\n", inst->fileIn);
+	printf(" input file: %s.tsp\n", inst->fileIn);
 	printf(" probability: %d\n", inst->prob);
 } /*dispPars*/
 
 void initInst(instance *inst) {
-	strcpy(inst->fileIn, "../data/");
 	inst->verbosity = 1;
 	inst->randseed = DEFAULT_RAND;
-	inst->timelimit = INFINITE;
+	inst->timelimit = 300;
 	inst->zbest = -1;
 	inst->n_sim = 1;
 	inst->prob = 100;
 	inst->two_opt = false;
+	inst->mode = GRASP;
 } /*initInst*/
 
 bool parse_cmd(int argc, char** argv, instance *inst) {
@@ -129,7 +129,7 @@ bool parse_cmd(int argc, char** argv, instance *inst) {
 		i++;
 		invalid_opt = true;
 		if(strcmp(argv[i],"-f") == 0){
-			strcat(inst->fileIn, argv[++i]);
+			strcpy(inst->fileIn, argv[++i]);
 			invalid_opt = false;
 			continue;
 		} /*set input file*/
@@ -192,7 +192,9 @@ int read_fileIn(instance* inst) {
 	
 	bool node_sect = false;
 	
-	FILE* fileIn = fopen(inst->fileIn, "r");
+	FILE* fileIn;
+    sprintf(line, "../data/%s.tsp", inst->fileIn);
+	fileIn = fopen(line, "r");
 	if(fileIn == NULL) return myError("Couldn't open the input file!", FILE_OPEN_ERR);
 	
 	inst->nnodes = -1;
@@ -274,11 +276,11 @@ int write_plotting_script(const char* fileOut, int nnodes, int ord){
 	if(ord == 0){
 		fprintf(script, "set terminal qt persist size 500,500\n");
 		fprintf(script, "set key off\n");
-		fprintf(script, "plot \"../out/%s.dat\" index 0 using 2:3:1 with labels\n", fileOut);
 	}
 	/*fprintf(script, ", \\\n\"\" skip %d with linespoints lc rgb %d\n", 3 + (3 * ord + 1) * nnodes, 2000 * ord);*/
     /*fprintf(script, "replot \"../out/%s.dat\" skip %d with lines lc rgbcolor %d\n", fileOut, 3 + (3 * ord + 1) * nnodes, 101101 * ord);*/
 	if(ord) fprintf(script, "replot \"../out/%s.dat\" index %d with lines lc rgbcolor 16777215 lw 3\n", fileOut, ord);
+	fprintf(script, "%splot \"../out/%s.dat\" index 0 using 2:3:1 with labels\n", (ord ? "re" : ""), fileOut);
 	fprintf(script, "replot \"../out/%s.dat\" index %d with lines lc rgb 0\n", fileOut, ord + 1);
 	fprintf(script, "pause 1\n");
 	

@@ -44,7 +44,7 @@ typedef struct {
 	double* costs;
 	
 /*parameters*/
-	long timelimit; /*total time limit*/
+	double timelimit; /*total time limit*/
 	int randseed;
 	int n_sim;
 	int prob; /*probability*/
