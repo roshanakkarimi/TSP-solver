@@ -1,6 +1,20 @@
 #include "tsp.h"
 #include <stdbool.h>
 
+/*global*/
+
+double (*pickers[2])(int i, int nearest_prob, int* sol, const instance* inst) = 
+{
+	greedy_picker,
+	grasp_picker
+};
+	
+const char mods[2][50] =
+{
+	"greedy",
+    "GRASP"
+};
+
 /*utilities*/
 
 double dist(int i, int j, const point* pts) {
@@ -44,6 +58,33 @@ double minCost(int i, int* sol, const instance* inst) {
 	return minCost;
 } /*minCost*/
 
+double secMinCost(int i, int* sol, const instance* inst){
+	int j, iMin, iSecMin;
+	double dj;
+	double* costs_from_i = inst->costs + inst->nnodes * sol[i];
+	double minCost = costs_from_i[sol[i + 1]];
+	double secMinCost = costs_from_i[sol[i + 2]];
+	iMin = i + 1;
+	iSecMin = i + 2;
+	if(secMinCost < minCost){
+		swapInt(&iMin, &iSecMin);
+		swapDouble(&minCost, &secMinCost);
+	} /*if*/
+	for(j = i + 3; j < inst->nnodes; j++)
+		if((dj = costs_from_i[sol[j]]) < minCost){
+			iSecMin = iMin;
+			secMinCost = minCost;
+			iMin = j;
+			minCost = dj;
+		} /*if*/
+		else if(dj < secMinCost){
+			iSecMin = j;
+			secMinCost = dj;
+		} /*if*/
+	swapInt(sol + i + 1, sol + iSecMin);
+	return secMinCost;
+} /*secMinCost*/
+
 
 /*managing errors and debug*/
 
@@ -77,7 +118,7 @@ bool checkSol(double z, const int* sol, const instance* inst){
 } /*checkSol*/
 
 
-/*managing solutions*/
+/*solving*/
 
 void updateBest(double z, const int* sol, instance* inst){
 	int i;
@@ -91,13 +132,24 @@ void updateBest(double z, const int* sol, instance* inst){
 	/*else printf("Solution is not acceptable!\n");*/
 } /*updateBest*/
 
+double greedy_picker(int i, int nearest_prob, int* sol, const instance* inst){ /*just a wrapper to use node_picker standard*/
+	return minCost(i, sol, inst);
+} /*greedy_picker*/
+
+double grasp_picker(int i, int nearest_prob, int* sol, const instance* inst){
+	if(rand() % 100 < nearest_prob)
+		return minCost(i, sol, inst);
+	else 
+		return secMinCost(i, sol, inst);
+} /*grasp_picker*/
+
 
 /* input elaboration*/
 
 void cmdHelp() {
-	printf("\n--Available options:--\n -f to set input file (.tsp, not to be specified)\n -tl to set overall time limit\n");
+	printf("\n--Available options:--\n -f to set input file (.tsp, not to be written); if notspecified, randomly generated\n");
 	printf(" -rs to set random seed\n -test to run in test mode\n -m to set solving algorithm (lowercase)\n");
-	printf(" -two to apply two opt. alg. to refine the solution\n");
+	printf(" -tl to set overall time limit\n -two to apply two opt. alg. to refine the solution\n");
     printf(" -ns to set number of runs to perform (only with -test opt.)\n -p to set probability\n -help to see options\n");
 } /*help*/
 
@@ -111,6 +163,7 @@ void dispPars(const instance* inst) {
 } /*dispPars*/
 
 void initInst(instance *inst) {
+	strcpy(inst->fileIn, "rand");
 	inst->verbosity = 1;
 	inst->randseed = DEFAULT_RAND;
 	inst->timelimit = 300;
@@ -216,12 +269,7 @@ int read_fileIn(instance* inst) {
 			if(inst->nnodes >= 0) return myError("Repeated DIMENSION section in input file!", FILE_STRUCT_ERR);
 			token1 = strtok(NULL, " :");
 			inst->nnodes = atoi(token1); 
-			inst->pts = malloc(inst->nnodes * sizeof(point));
-			assert(inst->pts != NULL);
-			inst->best_sol = malloc(inst->nnodes * sizeof(int));
-			assert(inst->best_sol != NULL);
-			inst->costs = malloc(inst->nnodes * inst->nnodes * sizeof(double));
-			assert(inst->costs != NULL);
+			alloc_inst(inst);
 			continue;
 		} /*if*/
 		if (strncmp(par_name, "EDGE_WEIGHT_TYPE", 16) == 0) 
@@ -259,6 +307,25 @@ int read_fileIn(instance* inst) {
 	return 0;
 } /*read_fileIn*/
 
+void alloc_inst(instance* inst){
+	inst->pts = malloc(inst->nnodes * sizeof(point));
+	assert(inst->pts != NULL);
+	inst->best_sol = malloc(inst->nnodes * sizeof(int));
+	assert(inst->best_sol != NULL);
+	inst->costs = malloc(inst->nnodes * inst->nnodes * sizeof(double));
+	assert(inst->costs != NULL);
+} /*alloc_inst*/
+
+void rand_points(instance* inst) {
+	int i;
+	inst->nnodes = MIN_NODES + rand() % (MAX_NODES - MIN_NODES + 1);
+	alloc_inst(inst);
+	for(i = 0; i < inst->nnodes; i++){
+		inst->pts[i].x = rand() % MAX_COORD;
+		inst->pts[i].y = rand() % MAX_COORD;
+	} /*for*/
+} /*rand_points*/
+
 void compute_costs(instance* inst, cost fc){
 	int i, j;
 	for(i = 0; i < inst->nnodes; i++)
@@ -282,7 +349,7 @@ int write_plotting_script(const char* fileOut, int nnodes, int ord){
 	if(ord) fprintf(script, "replot \"../out/%s.dat\" index %d with lines lc rgbcolor 16777215 lw 3\n", fileOut, ord);
 	fprintf(script, "%splot \"../out/%s.dat\" index 0 using 2:3:1 with labels\n", (ord ? "re" : ""), fileOut);
 	fprintf(script, "replot \"../out/%s.dat\" index %d with lines lc rgb 0\n", fileOut, ord + 1);
-	fprintf(script, "pause 1\n");
+	fprintf(script, "pause 0.5\n");
 	
 	fclose(script);
 	return 0;

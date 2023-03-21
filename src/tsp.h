@@ -15,6 +15,9 @@
 #define INFINITE LONG_MAX
 #define EPSILON 0.00001
 #define DEFAULT_RAND 1
+#define MIN_NODES 75
+#define MAX_NODES 150
+#define MAX_COORD 7500
 
 /*errors*/
 
@@ -27,6 +30,7 @@
 
 #define GREEDY 0
 #define GRASP 1
+
 
 /*data structures*/
 
@@ -75,21 +79,26 @@ void swapDouble(double*, double*);
 double dist(int, int, const point*);
 double sq_dist(int, int, const point*);
 double minCost(int, int*, const instance*);
+double secMinCost(int, int*, const instance*);
 
 /*input elaboration and initialization*/
 
 void initInst(instance*);
 bool parse_cmd(int, char**, instance*);
+void alloc_inst(instance*);
 int read_fileIn(instance*);
+void rand_points(instance*);
 void compute_costs(instance*, cost);
 
 /*managing errors and debug*/
 
 bool checkSol(double, const int*, const instance*);
 
-/*managing solutions*/
+/*solving*/
 
 void updateBest(double, const int*, instance*);
+double greedy_picker(int, int, int*, const instance*); /*just a wrapper to use node_picker standard*/
+double grasp_picker(int, int, int*, const instance*);
 
 /*output elaboration*/
 
@@ -99,5 +108,10 @@ int write_plotting_script(const char*, int, int);
 /*memory management*/
 
 void freeInst(instance*);
+
+/*global*/
+
+double (*pickers[2])(int, int, int*, const instance*);
+const char mods[2][50];
  
 #endif

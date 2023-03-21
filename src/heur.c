@@ -1,47 +1,8 @@
 #include "tsp.h"
 
-double secMinCost(int i, int* sol, const instance* inst){
-	int j, iMin, iSecMin;
-	double dj;
-	int last = sol[i];
-	double minCost = inst->costs[last * inst->nnodes + sol[i + 1]];
-	double secMinCost = inst->costs[last * inst->nnodes + sol[i + 2]];
-	iMin = i + 1;
-	iSecMin = i + 2;
-	if(secMinCost < minCost){
-		swapInt(&iMin, &iSecMin);
-		swapDouble(&minCost, &secMinCost);
-	} /*if*/
-	for(j = i + 3; j < inst->nnodes; j++)
-		if((dj = inst->costs[last * inst->nnodes + sol[j]]) < minCost){
-			iSecMin = iMin;
-			secMinCost = minCost;
-			iMin = j;
-			minCost = dj;
-		} /*if*/
-		else if(dj < secMinCost){
-			iSecMin = j;
-			secMinCost = dj;
-		} /*if*/
-	swapInt(sol + i + 1, sol + iSecMin);
-	return secMinCost;
-} /*secMinCost*/
-
-double greedy_picker(int i, int nearest_prob, int* sol, const instance* inst){ /*just a wrapper to use node_picker standard*/
-	return minCost(i, sol, inst);
-} /*greedy_picker*/
-
-double grasp_picker(int i, int nearest_prob, int* sol, const instance* inst){
-	if(rand() % 100 < nearest_prob)
-		return minCost(i, sol, inst);
-	else 
-		return secMinCost(i, sol, inst);
-} /*grasp_picker*/
-
-double solve(instance* inst, int* sol, int prob, int rs, node_picker chooseNode){
+double solve(instance* inst, int* sol, int prob, node_picker chooseNode){
 	double z = 0;
 	int j, n = inst->nnodes;
-	srand(rs);
 	for(j = 0; j < n; j++)
 		sol[j] = j;
 	swapInt(sol, sol + rand() % n);
@@ -90,22 +51,10 @@ double two_opt(instance* inst, int* sol){
 
 int main(int argc, char **argv)
 {
-	double (*pickers[2])(int i, int nearest_prob, int* sol, const instance* inst) = 
-	{
-	greedy_picker,
-	grasp_picker
-	};
-	
-	char mods[2][50] =
-	{
-		"greedy",
-	    "GRASP"
-	};
-	
 	double tstart;
 	double impr, z_curr;
 	int* sol;
-	int ord = 0;
+	int i, ord = 0;
 	char out_name[50];
 	instance* inst = malloc(sizeof(instance));
 	assert(inst != NULL);
@@ -114,20 +63,23 @@ int main(int argc, char **argv)
 	
 	initInst(inst);
     parse_cmd(argc, argv, inst);
-	read_fileIn(inst);
+	srand(inst->randseed);
+	if(strcmp(inst->fileIn, "rand") == 0) rand_points(inst);
+    else read_fileIn(inst);
 	compute_costs(inst, (cost)sq_dist);
 	
-	sprintf(out_name, "%s_%s_%s", inst->fileIn, mods[inst->mode], (inst->two_opt ? "2opt" : ""));
+	sprintf(out_name, "%s_%s%s", inst->fileIn, mods[inst->mode], (inst->two_opt ? "_2opt" : ""));
 	
 	tstart = time(NULL);
 	while(time(NULL) - tstart < inst->timelimit)
-		z_curr = solve(inst, sol, inst->prob, inst->randseed, (node_picker)pickers[inst->mode]);
+		solve(inst, sol, inst->prob, (node_picker)pickers[inst->mode]);
 	write_plotting_script(out_name, inst->nnodes, ord++);
 	write_out_file(inst, sol, out_name, "w");
 	
-	/*for(i = 0; i < inst->nnodes; i++) printf("%d %s", sol[i], ((i % 6 == 0 && i != 0) ? "\n" : ""));*/
-	printf("\nSol. without 2opt: %f\n", z_curr);
+	printf("\nSol. without 2opt: %f\n", inst->zbest);
 	
+	for(i = 0; i < inst->nnodes; i++) sol[i] = inst->best_sol[i];
+	z_curr = inst->zbest;
 	if(inst->two_opt) while((impr = two_opt(inst, sol))) {
 		updateBest((z_curr = z_curr - impr), sol, inst);
 		write_out_file(inst, sol, out_name, "a");
