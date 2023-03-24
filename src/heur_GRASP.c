@@ -51,6 +51,150 @@ double solve(instance* inst, int* sol, int prob, int rs, node_picker chooseNode)
 	return z;
 } /*solve*/
 
+/*ROSHAA*/
+
+double min(double* list, int size){
+	double minValue=INFINITE;
+	for (int i=0; i < size; i++){
+		if(list[i] < minValue){
+			minValue = list[i];
+		}
+	}
+
+	return minValue;
+}
+
+double max(double* list, int size){
+	double maxValue=INFINITE;
+	for (int i=0; i < size; i++){
+		if(list[i] < maxValue){
+			maxValue = list[i];
+		}
+	}
+
+	return maxValue;
+}
+
+double extra_mileage(instance* inst){
+
+	int xMinIndex, xMaxIndex, yMinIndex, yMaxIndex, firstNodeIndex, secondNodeIndex;
+	double maxDistance=0;
+	int* extrem = malloc(sizeof(int) * inst->nnodes);
+
+	/*nodes structure*/
+	int* prev = malloc(sizeof(int)*inst->nnodes);
+	for (int i=0; i<inst->nnodes; i++){
+		prev[i] = INFINITE;
+	}
+
+	int* nxt = malloc(sizeof(int)*inst->nnodes);
+	for (int i=0; i<inst->nnodes; i++){
+		prev[i] = INFINITE;
+	}
+	
+	/*finding furthest points*/
+	double* xArr = malloc(sizeof(int) * inst->nnodes);
+	double* yArr = malloc(sizeof(int) * inst->nnodes);
+
+	for (int i=0; i < inst->nnodes; i++){
+		xArr[i] = inst->pts[i].x;
+	}
+
+	for (int i=0; i < inst->nnodes; i++){
+		yArr[i] = inst->pts[i].y;
+	}
+
+	double minX = min(xArr, inst->nnodes);
+	double maxX = max(xArr, inst->nnodes);
+
+	double minY = min(yArr, inst->nnodes);
+	double maxY = max(yArr, inst->nnodes); 
+
+	for (int i = 0; i < inst->nnodes; i++)
+	{
+		if (inst->pts[i].x != minX 
+		|| inst->pts[i].x != maxX 
+		|| inst->pts[i].y != minY 
+		|| inst->pts[i].y != maxY) continue;
+		
+		else extrem[i] = 1;
+		/*alternative code 
+		if(inst->pts[i].x == minX){
+			extrem.add(i);
+		}
+		else if (inst->pts[i].x == maxX){
+			extrem.add(i);
+		}
+		if ( inst->pts[i].y == minY){
+			extrem.add(i);
+		}
+		else if (inst->pts[i].y == maxY){
+			extrem.add(i);
+		}
+		*/
+	}
+
+	for (int i = 0; i <inst->nnodes; i++){
+		for (int j = 0; j <inst->nnodes; j++){
+			double currentDistance = dist(extrem[i], extrem[j], inst->pts);
+			if (currentDistance > maxDistance){
+					firstNodeIndex = i;
+					secondNodeIndex = j;
+					maxDistance = currentDistance;
+			}
+		}
+	}
+
+	nxt[firstNodeIndex] = secondNodeIndex;
+	prev[secondNodeIndex] = firstNodeIndex;
+	/*finish*/
+
+	/*finding closest next option*/
+	double updatedCost, prevCost;
+	bool edge_updated;
+	int i = 0;
+	while(i < inst->nnodes){
+		if (prev[i] != INFINITE){ /*visited node*/
+			for (int j=0; j <= inst->nnodes; j++){
+				if (prev[j] == INFINITE){ /*unvisited node*/
+					updatedCost = dist(i, j, inst->pts) +
+					              dist(j, prev[i], inst->pts);
+					prevCost = dist(i, prev[i], inst->pts);
+					if (updatedCost < prevCost){
+						prev[j] = prev[i];
+						nxt[j] = i;
+						nxt[prev[i]] = j;
+						prev[i] = j;
+						edge_updated = 1; //1 or 0?
+					}
+				}
+			}
+		}
+		if (edge_updated){
+			i = 0;
+		}
+		else{
+			i++;
+		}
+	}
+	/*end*/
+
+	/*creating solution sequence*/
+	int* solution_sequence = malloc(sizeof(int) * inst->nnodes);
+	int curr_index = firstNodeIndex;
+	for (int i=0; i < inst->nnodes; i++){
+		solution_sequence[i] = curr_index;
+		curr_index = nxt[curr_index];
+	}
+	/*end*/
+
+	return 0.0;
+
+//check for covering all nodes
+//freeing mem
+}
+
+
 double testN(instance* inst, int* sol, int prob) {
 	int i;
 	double z_avg = 0;
