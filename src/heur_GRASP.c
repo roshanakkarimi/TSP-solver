@@ -112,26 +112,12 @@ double extra_mileage(instance* inst){
 
 	for (int i = 0; i < inst->nnodes; i++)
 	{
-		if (inst->pts[i].x != minX 
-		|| inst->pts[i].x != maxX 
-		|| inst->pts[i].y != minY 
-		|| inst->pts[i].y != maxY) continue;
+		if (inst->pts[i].x == minX || 
+			inst->pts[i].x == maxX ||
+			inst->pts[i].y == minY ||
+			inst->pts[i].y == maxY) extrem[i] = 1;
 		
-		else extrem[i] = 1;
-		/*alternative code 
-		if(inst->pts[i].x == minX){
-			extrem.add(i);
-		}
-		else if (inst->pts[i].x == maxX){
-			extrem.add(i);
-		}
-		if ( inst->pts[i].y == minY){
-			extrem.add(i);
-		}
-		else if (inst->pts[i].y == maxY){
-			extrem.add(i);
-		}
-		*/
+		else continue;
 	}
 
 	for (int i = 0; i <inst->nnodes; i++){
