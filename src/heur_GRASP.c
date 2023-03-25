@@ -65,84 +65,118 @@ double min(double* list, int size){
 }
 
 double max(double* list, int size){
-	double maxValue=INFINITE;
+	double maxValue=0;
 	for (int i=0; i < size; i++){
-		if(list[i] < maxValue){
+		if(list[i] > maxValue){
 			maxValue = list[i];
 		}
 	}
 
 	return maxValue;
 }
+void plot_sol(instance* inst, int arr[], int size) {
 
-double extra_mileage(instance* inst){
+	FILE* gnuplotPipe = popen("gnuplot -persist", "w");
+	fprintf(gnuplotPipe, "set xlabel 'X'\n");
+	fprintf(gnuplotPipe, "set ylabel 'Y'\n");
 
-	int xMinIndex, xMaxIndex, yMinIndex, yMaxIndex, firstNodeIndex, secondNodeIndex;
+	fprintf(gnuplotPipe, "plot '-' using 2:3:1 with linespoints\n");
+	for (int i = 0; i <= size; i++) {
+		fprintf(gnuplotPipe, "%d %lf %lf\n", i, inst->pts[arr[i]].x, inst->pts[arr[i]].y);
+	}
+	fprintf(gnuplotPipe, "e\n");
+
+	// Close the Gnuplot pipe
+	pclose(gnuplotPipe);
+}
+
+void furthest_initialization(instance* inst, int* arr){
 	double maxDistance=0;
-	int* extrem = malloc(sizeof(int) * inst->nnodes);
-
-	/*nodes structure*/
-	int* prev = malloc(sizeof(int)*inst->nnodes);
-	for (int i=0; i<inst->nnodes; i++){
-		prev[i] = INFINITE;
-	}
-
-	int* nxt = malloc(sizeof(int)*inst->nnodes);
-	for (int i=0; i<inst->nnodes; i++){
-		prev[i] = INFINITE;
-	}
-	
-	/*finding furthest points*/
-	double* xArr = malloc(sizeof(int) * inst->nnodes);
-	double* yArr = malloc(sizeof(int) * inst->nnodes);
+	int* extrem = malloc(sizeof(int)*inst->nnodes);
+	double* xArr = malloc(sizeof(int)*inst->nnodes);
+	double* yArr = malloc(sizeof(int)*inst->nnodes);
 
 	for (int i=0; i < inst->nnodes; i++){
 		xArr[i] = inst->pts[i].x;
-	}
+	} 
 
 	for (int i=0; i < inst->nnodes; i++){
 		yArr[i] = inst->pts[i].y;
 	}
 
+	for (int i=0; i<inst->nnodes; i++){
+		printf("x: %f\n", xArr[i]);
+	}	
+
+	for (int i=0; i<inst->nnodes; i++){
+		printf("y: %f\n", yArr[i]);
+	}
+
 	double minX = min(xArr, inst->nnodes);
 	double maxX = max(xArr, inst->nnodes);
-
+	printf("minX: %f, maxX: %f", minX, maxX);
 	double minY = min(yArr, inst->nnodes);
 	double maxY = max(yArr, inst->nnodes); 
+	printf("minY: %f, maxY: %f", minY, maxY);
 
 	for (int i = 0; i < inst->nnodes; i++)
-	{
+	{	
 		if (inst->pts[i].x == minX || 
 			inst->pts[i].x == maxX ||
 			inst->pts[i].y == minY ||
 			inst->pts[i].y == maxY) extrem[i] = 1;
-		
-		else continue;
-	}
+	} /* finding extremum points */
 
 	for (int i = 0; i <inst->nnodes; i++){
 		for (int j = 0; j <inst->nnodes; j++){
-			double currentDistance = dist(extrem[i], extrem[j], inst->pts);
-			if (currentDistance > maxDistance){
-					firstNodeIndex = i;
-					secondNodeIndex = j;
+			if (extrem[i] * extrem[j] == 1){ /* both be extremum */
+				double currentDistance = dist(i, j, inst->pts); /* extrem = 0 or 1*/
+				if (currentDistance > maxDistance){
+					arr[0] = i;
+					arr[1] = j;
 					maxDistance = currentDistance;
+				}
 			}
 		}
+	} /*computing maximum distance*/
+
+	free(xArr);
+	free(yArr);
+	free(extrem);
+}
+
+double extra_mileage(instance* inst){
+
+	int firstNodeIndex =0, secondNodeIndex=0;
+	int* two_first = malloc(sizeof(int)*2);
+
+	/*nodes structure*/
+	int* prev = malloc(sizeof(int)*inst->nnodes);
+	for (int i=0; i<inst->nnodes; i++){
+		prev[i] = -1;
 	}
+
+	int* nxt = malloc(sizeof(int)*inst->nnodes);
+	for (int i=0; i<inst->nnodes; i++){
+		nxt[i] = -1;
+	}
+
+	/*finding furthest points*/
+	furthest_initialization(inst, two_first);
+	firstNodeIndex = two_first[0];
+	secondNodeIndex = two_first[1];
 
 	nxt[firstNodeIndex] = secondNodeIndex;
 	prev[secondNodeIndex] = firstNodeIndex;
-	/*finish*/
 
 	/*finding closest next option*/
 	double updatedCost, prevCost;
 	bool edge_updated;
 	int i = 0;
 	while(i < inst->nnodes){
-		if (prev[i] != INFINITE){ /*visited node*/
+		if (prev[i] != -1){ /*visited node*/
 			for (int j=0; j <= inst->nnodes; j++){
-				if (prev[j] == INFINITE){ /*unvisited node*/
+				if (prev[j] == -1){ /*unvisited node*/
 					updatedCost = dist(i, j, inst->pts) +
 					              dist(j, prev[i], inst->pts);
 					prevCost = dist(i, prev[i], inst->pts);
@@ -163,8 +197,7 @@ double extra_mileage(instance* inst){
 			i++;
 		}
 	}
-	/*end*/
-
+	
 	/*creating solution sequence*/
 	int* solution_sequence = malloc(sizeof(int) * inst->nnodes);
 	int curr_index = firstNodeIndex;
@@ -172,7 +205,7 @@ double extra_mileage(instance* inst){
 		solution_sequence[i] = curr_index;
 		curr_index = nxt[curr_index];
 	}
-	/*end*/
+
 
 	return 0.0;
 
@@ -231,7 +264,7 @@ int main(int argc, char **argv)
 	
 	else
 		solve(inst, sol, inst->prob, inst->randseed, (node_picker)((inst->mode == GREEDY) ? greedy_picker : grasp_picker));
-	
+		extra_mileage(inst);
 	printf("Best sol.: %f\n", inst->zbest);
 	write_out_file(inst, inst->best_sol, "h_GRASP");
     write_plotting_script("h_GRASP", inst->nnodes);
