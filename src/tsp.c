@@ -22,12 +22,11 @@ double dist(int i, int j, const point* pts) {
 } /*dist*/
 
 double sq_dist(int i, int j, const point* pts) {
-	return pow(pts[i].x - pts[j].x, 2) + pow(pts[i].y - pts[j].y, 2);
+	return (pts[i].x - pts[j].x) * (pts[i].x - pts[j].x) + (pts[i].y - pts[j].y) * (pts[i].y - pts[j].y);
 } /*dist*/
 
 void swapInt(int* i1, int* i2) {
 	int temp;
-	if(i1 == i2 || (*i2) == (*i1)) return; /*optimization*/
 	temp = *i2;
 	*i2 = *i1;
 	*i1 = temp;
@@ -35,7 +34,6 @@ void swapInt(int* i1, int* i2) {
 
 void swapDouble(double* d1, double* d2) {
 	double temp;
-	if(d1 == d2 || fabs((*d2) - (*d1)) < EPSILON) return; /*optimization*/
 	temp = *d2;
 	*d2 = *d1;
 	*d1 = temp;
@@ -93,9 +91,18 @@ int myError(const char* err, int errType){
 	return errType;
 } /*myError*/
 
+double getSolCost(const int* sol, const instance* inst){
+	int i;
+	double z = 0;
+	for(i = 0; i < inst->nnodes - 1; i++)
+		z += inst->costs[sol[i] * inst->nnodes + sol[i + 1]];
+	z += inst->costs[sol[i] * inst->nnodes + sol[0]];
+	return z;
+} /*getSolCost*/
+
 bool checkSol(double z, const int* sol, const instance* inst){
 	int i, n = inst->nnodes;
-	double z_check = 0;
+	double z_check;
 	int* count = calloc(n, sizeof(int));
 	assert(count != NULL);
 	for(i = 0; i < n; i++)
@@ -107,11 +114,9 @@ bool checkSol(double z, const int* sol, const instance* inst){
 			return false;
 		} /*if*/
 	free(count);
-	for(i = 0; i < n - 1; i++)
-		z_check += inst->costs[sol[i] * n + sol[i + 1]];
-	z_check += inst->costs[sol[i] * n + sol[0]];
+	z_check = getSolCost(sol, inst);
 	if(fabs(z_check - z) > EPSILON){
-		printf("Wrong: z_check = %f while z = %f\n", z_check, z);
+		printf("Wrong: z_check = %.2f while z = %.2f so diff = %.2f\n", z_check, z, z_check - z);
 		return false;
 	} /*if*/
 	return true;
@@ -148,9 +153,12 @@ double grasp_picker(int i, int nearest_prob, int* sol, const instance* inst){
 
 void cmdHelp() {
 	printf("\n--Available options:--\n -f to set input file (.tsp, not to be written); if notspecified, randomly generated\n");
-	printf(" -rs to set random seed\n -test to run in test mode\n -m to set solving algorithm (lowercase)\n");
-	printf(" -tl to set overall time limit\n -two to apply two opt. alg. to refine the solution\n");
-    printf(" -ns to set number of runs to perform (only with -test opt.)\n -p to set probability\n -help to see options\n");
+	printf(" -rs to set random seed\n -p to set probability\n -tl to set overall time limit\n");
+	printf(" -m to set solving algorithm (lowercase)\n");
+	printf(" -two to apply two opt. alg. to refine the solution\n");
+	printf(" -tabu to use tabu alg. to escape local mins. (with -two option)\n -tt to set tabu tenure(with -tabu option)\n");
+    printf(" -test to run in test mode\n -ns to set number of runs to perform (with -test opt.)\n");
+	printf(" -help to see options\n");
 } /*help*/
 
 void dispPars(const instance* inst) {
@@ -160,6 +168,7 @@ void dispPars(const instance* inst) {
 	printf(" verbosity level: %d\n", inst->verbosity);
 	printf(" input file: %s.tsp\n", inst->fileIn);
 	printf(" probability: %d\n", inst->prob);
+	printf(" tabu tenure: %d\n", inst->tabu_tenure);
 } /*dispPars*/
 
 void initInst(instance *inst) {
@@ -172,6 +181,8 @@ void initInst(instance *inst) {
 	inst->prob = 100;
 	inst->two_opt = false;
 	inst->mode = GRASP;
+	inst->tabu = false;
+	inst->tabu_tenure = DEFAULT_TT;
 } /*initInst*/
 
 bool parse_cmd(int argc, char** argv, instance *inst) {
@@ -204,6 +215,11 @@ bool parse_cmd(int argc, char** argv, instance *inst) {
 			invalid_opt = false;
 			continue;
 		} /*set random seed*/
+		if(strcmp(argv[i],"-tt") == 0){
+			inst->tabu_tenure = abs(atoi(argv[++i])); 
+			invalid_opt = false;
+			continue;
+		} /*set tabu tenure*/
 		if(strcmp(argv[i],"-ns") == 0){
 			inst->n_sim = abs(atoi(argv[++i])); 
 			invalid_opt = false;
@@ -229,9 +245,15 @@ bool parse_cmd(int argc, char** argv, instance *inst) {
 			invalid_opt = false;
 			continue;
 		} /*use two opt. alg.*/
+		if(strcmp(argv[i], "-tabu") == 0){
+			inst->tabu = true;
+			invalid_opt = false;
+			continue;
+		} /*use tabu alg.*/
 		if(strcmp(argv[i],"-help") == 0) invalid_opt = false;
 		else if(invalid_opt) printf("\nINVALID OPTION:");
 		cmdHelp();
+		exit(0);
 	} /*while*/
 	return test;
 } /*parse_cmd*/
@@ -328,9 +350,15 @@ void rand_points(instance* inst) {
 
 void compute_costs(instance* inst, cost fc){
 	int i, j;
-	for(i = 0; i < inst->nnodes; i++)
-		for(j = 0; j < inst->nnodes; j++)
-			inst->costs[i * inst->nnodes + j] = (i == j) * INFINITE + fc(i, j, inst->pts);
+	for(i = 0; i < inst->nnodes; i++){
+		for(j = 0; j < i; j++)
+			inst->costs[i * inst->nnodes + j] = fc(i, j, inst->pts);
+		inst->costs[i * inst->nnodes + i] = INFINITE_DBL;
+	} /*for*/
+	for(i = 0; i < inst->nnodes; i++){
+		for(j = i + 1; j < inst->nnodes; j++)
+			inst->costs[i * inst->nnodes + j] = inst->costs[j * inst->nnodes + i];
+	} /*for*/
 } /*compute_costs*/
 
 

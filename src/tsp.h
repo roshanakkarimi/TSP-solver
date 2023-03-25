@@ -9,12 +9,14 @@
 #include <stdbool.h>
 #include <time.h>
 #include <limits.h>
+#include <float.h>
 
 /*constants*/
 
-#define INFINITE LONG_MAX
+#define INFINITE_DBL DBL_MAX
 #define EPSILON 0.00001
 #define DEFAULT_RAND 1
+#define DEFAULT_TT 1
 #define MIN_NODES 75
 #define MAX_NODES 150
 #define MAX_COORD 7500
@@ -50,12 +52,21 @@ typedef struct {
 /*parameters*/
 	double timelimit; /*total time limit*/
 	int randseed;
-	int n_sim;
-	int prob; /*probability*/
 	int mode;
 	char verbosity;
 	char fileIn[100];
+	
+/*options*/
 	bool two_opt;
+	bool tabu;
+	
+/*specific pars.*/
+	int n_sim; /*for test mode*/
+	int prob; /*for grasp policy functions*/
+	int tabu_tenure; /*for tabu alg.*/
+	
+/*running pars.*/
+	double t_start;
 	
 /*results*/
 	double zbest; /*best value for the obj. function*/
@@ -80,6 +91,7 @@ double dist(int, int, const point*);
 double sq_dist(int, int, const point*);
 double minCost(int, int*, const instance*);
 double secMinCost(int, int*, const instance*);
+double getSolCost(const int*, const instance*);
 
 /*input elaboration and initialization*/
 
@@ -92,6 +104,7 @@ void compute_costs(instance*, cost);
 
 /*managing errors and debug*/
 
+int myError(const char*, int);
 bool checkSol(double, const int*, const instance*);
 
 /*solving*/
