@@ -103,21 +103,12 @@ void furthest_initialization(instance* inst, int* arr){
 	for (int i=0; i < inst->nnodes; i++){
 		yArr[i] = inst->pts[i].y;
 	}
-
-	for (int i=0; i<inst->nnodes; i++){
-		printf("x: %f\n", xArr[i]);
-	}	
-
-	for (int i=0; i<inst->nnodes; i++){
-		printf("y: %f\n", yArr[i]);
-	}
+	
 
 	double minX = min(xArr, inst->nnodes);
 	double maxX = max(xArr, inst->nnodes);
-	printf("minX: %f, maxX: %f", minX, maxX);
 	double minY = min(yArr, inst->nnodes);
 	double maxY = max(yArr, inst->nnodes); 
-	printf("minY: %f, maxY: %f", minY, maxY);
 
 	for (int i = 0; i < inst->nnodes; i++)
 	{	
@@ -147,70 +138,70 @@ void furthest_initialization(instance* inst, int* arr){
 
 double extra_mileage(instance* inst){
 
-	int firstNodeIndex =0, secondNodeIndex=0;
+	int firstNodeIndex =0, secondNodeIndex=0, count=0;
 	int* two_first = malloc(sizeof(int)*2);
 
-	/*nodes structure*/
 	int* prev = malloc(sizeof(int)*inst->nnodes);
+
+	double updatedCost, minCost;
+	int node_iteration = 0, covered_nodes=1;
+
+	/*nodes structure*/
 	for (int i=0; i<inst->nnodes; i++){
 		prev[i] = -1;
-	}
-
-	int* nxt = malloc(sizeof(int)*inst->nnodes);
-	for (int i=0; i<inst->nnodes; i++){
-		nxt[i] = -1;
 	}
 
 	/*finding furthest points*/
 	furthest_initialization(inst, two_first);
 	firstNodeIndex = two_first[0];
-	secondNodeIndex = two_first[1];
+	secondNodeIndex = two_first[1]; 
 
-	nxt[firstNodeIndex] = secondNodeIndex;
 	prev[secondNodeIndex] = firstNodeIndex;
 
 	/*finding closest next option*/
-	double updatedCost, prevCost;
-	bool edge_updated;
-	int i = 0;
-	while(i < inst->nnodes){
-		if (prev[i] != -1){ /*visited node*/
-			for (int j=0; j <= inst->nnodes; j++){
-				if (prev[j] == -1){ /*unvisited node*/
-					updatedCost = dist(i, j, inst->pts) +
-					              dist(j, prev[i], inst->pts);
-					prevCost = dist(i, prev[i], inst->pts);
-					if (updatedCost < prevCost){
-						prev[j] = prev[i];
-						nxt[j] = i;
-						nxt[prev[i]] = j;
-						prev[i] = j;
-						edge_updated = 1; //1 or 0?
+	
+	while(node_iteration < inst->nnodes ){
+		if (prev[node_iteration] != -1){ /*visited node*/
+			minCost = INFINITE;
+			for (int j=0; j < inst->nnodes; j++){
+				if (prev[j] == -1 && j != 6){ /*unvisited node*/
+					updatedCost = dist(prev[node_iteration], j, inst->pts)+
+								  dist(j, node_iteration, inst->pts);
+					if (updatedCost < minCost){
+						minCost = updatedCost;
+						covered_nodes++;
+						prev[j] = prev[node_iteration];
+						prev[node_iteration] = j;
 					}
 				}
 			}
 		}
-		if (edge_updated){
-			i = 0;
+		if (node_iteration == inst->nnodes -1 && covered_nodes != inst->nnodes -1){
+			node_iteration = 0;
 		}
 		else{
-			i++;
+			node_iteration++;
 		}
 	}
+
+	for (int i=0; i <inst->nnodes; i++){
+		if (prev[i] != -1){
+			count++;
+			printf("prev node:%d", prev[i]);
+		}
+	} /*check for covering all nodes*/
 	
-	/*creating solution sequence*/
 	int* solution_sequence = malloc(sizeof(int) * inst->nnodes);
-	int curr_index = firstNodeIndex;
+	int curr_index = 16;
 	for (int i=0; i < inst->nnodes; i++){
 		solution_sequence[i] = curr_index;
-		curr_index = nxt[curr_index];
-	}
+		curr_index = prev[curr_index];
+	} 	/*creating solution sequence*/
 
-
+	free(prev);
+	free(solution_sequence);
 	return 0.0;
 
-//check for covering all nodes
-//freeing mem
 }
 
 
