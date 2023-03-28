@@ -90,7 +90,7 @@ void plot_sol(instance* inst, int arr[], int size) {
 	pclose(gnuplotPipe);
 }
 
-void furthest_initialization(instance* inst, int* arr){
+void furthest_initialization(instance* inst, int* arr){ /*make it more functional*/
 	double maxDistance=0;
 	int* extrem = malloc(sizeof(int)*inst->nnodes);
 	double* xArr = malloc(sizeof(int)*inst->nnodes);
@@ -191,7 +191,6 @@ double extra_mileage(instance* inst){
 		prev[visitedNode] = newNode;
 	}
 
-	
 	int* solution_sequence = malloc(sizeof(int) * inst->nnodes);
 	int curr_index = firstNodeIndex;
 	for (int i=0; i < inst->nnodes; i++){
@@ -256,7 +255,7 @@ int main(int argc, char **argv)
 	} /*if*/
 	
 	else
-		solve(inst, sol, inst->prob, inst->randseed, (node_picker)((inst->mode == GREEDY) ? greedy_picker : grasp_picker));
+		//solve(inst, sol, inst->prob, inst->randseed, (node_picker)((inst->mode == GREEDY) ? greedy_picker : grasp_picker));
 		extra_mileage(inst);
 	printf("Best sol.: %f\n", inst->zbest);
 	write_out_file(inst, inst->best_sol, "h_GRASP");
