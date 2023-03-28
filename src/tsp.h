@@ -16,7 +16,7 @@
 #define INFINITE_DBL DBL_MAX
 #define EPSILON 0.00001
 #define DEFAULT_RAND 1
-#define DEFAULT_TT 1
+#define DEFAULT_TT 15
 #define MIN_NODES 75
 #define MAX_NODES 150
 #define MAX_COORD 7500
@@ -32,6 +32,12 @@
 
 #define GREEDY 0
 #define GRASP 1
+
+/*heur. ref. modes*/
+
+#define NOTHING 0
+#define TWO 1
+#define TWO_TABU 2
 
 
 /*data structures*/
@@ -52,13 +58,12 @@ typedef struct {
 /*parameters*/
 	double timelimit; /*total time limit*/
 	int randseed;
-	int mode;
 	char verbosity;
 	char fileIn[100];
 	
 /*options*/
-	bool two_opt;
-	bool tabu;
+	int heur_mode;
+	int ref_mode;
 	
 /*specific pars.*/
 	int n_sim; /*for test mode*/
@@ -75,10 +80,9 @@ typedef struct {
 	int best_prob;
 } instance;	
 
-/*generic functions*/
+/*cost functions*/
 
 typedef double (*cost)(int ind1, int ind2, const point* pts);
-typedef double (*node_picker)(int i, int nearest_prob, int* sol, const instance* inst);
 
 /*generic utilities*/
 
@@ -110,21 +114,14 @@ bool checkSol(double, const int*, const instance*);
 /*solving*/
 
 void updateBest(double, const int*, instance*);
-double greedy_picker(int, int, int*, const instance*); /*just a wrapper to use node_picker standard*/
-double grasp_picker(int, int, int*, const instance*);
 
 /*output elaboration*/
 
-int write_out_file(const instance*, const int*, const char*, const char*);
-int write_plotting_script(const char*, int, int);
+int update_out_file(const instance*, const int*, FILE*);
+int update_plotting_script(FILE*, const char*, int);
 
 /*memory management*/
 
 void freeInst(instance*);
-
-/*global*/
-
-double (*pickers[2])(int, int, int*, const instance*);
-const char mods[2][50];
  
 #endif

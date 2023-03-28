@@ -1,20 +1,6 @@
 #include "tsp.h"
 #include <stdbool.h>
 
-/*global*/
-
-double (*pickers[2])(int i, int nearest_prob, int* sol, const instance* inst) = 
-{
-	greedy_picker,
-	grasp_picker
-};
-	
-const char mods[2][50] =
-{
-	"greedy",
-    "GRASP"
-};
-
 /*utilities*/
 
 double dist(int i, int j, const point* pts) {
@@ -128,31 +114,19 @@ bool checkSol(double z, const int* sol, const instance* inst){
 void updateBest(double z, const int* sol, instance* inst){
 	int i;
 	if(checkSol(z, sol, inst)){ 
-		if(z < inst->zbest || inst->zbest == -1) {
+		if(z < inst->zbest) {
 		inst->zbest = z;
 		for(i = 0; i < inst->nnodes; i++)
 			inst->best_sol[i] = sol[i];
 		} /*if*/
 	} /*if*/
-	/*else printf("Solution is not acceptable!\n");*/
 } /*updateBest*/
-
-double greedy_picker(int i, int nearest_prob, int* sol, const instance* inst){ /*just a wrapper to use node_picker standard*/
-	return minCost(i, sol, inst);
-} /*greedy_picker*/
-
-double grasp_picker(int i, int nearest_prob, int* sol, const instance* inst){
-	if(rand() % 100 < nearest_prob)
-		return minCost(i, sol, inst);
-	else 
-		return secMinCost(i, sol, inst);
-} /*grasp_picker*/
-
 
 /* input elaboration*/
 
 void cmdHelp() {
-	printf("\n--Available options:--\n -f to set input file (.tsp, not to be written); if notspecified, randomly generated\n");
+	printf("\n--Available options:--\n -f to set input file (.tsp, not to be written); if not specified, randomly generated\n");
+	printf(" -n to set number of nodes to be randomly generated\n");
 	printf(" -rs to set random seed\n -p to set probability\n -tl to set overall time limit\n");
 	printf(" -m to set solving algorithm (lowercase)\n");
 	printf(" -two to apply two opt. alg. to refine the solution\n");
@@ -172,16 +146,15 @@ void dispPars(const instance* inst) {
 } /*dispPars*/
 
 void initInst(instance *inst) {
-	strcpy(inst->fileIn, "rand");
+	strcpy(inst->fileIn, "\0");
 	inst->verbosity = 1;
 	inst->randseed = DEFAULT_RAND;
 	inst->timelimit = 300;
-	inst->zbest = -1;
+	inst->zbest = INFINITE_DBL;
 	inst->n_sim = 1;
 	inst->prob = 100;
-	inst->two_opt = false;
-	inst->mode = GRASP;
-	inst->tabu = false;
+	inst->heur_mode = GRASP;
+	inst->ref_mode = NOTHING;
 	inst->tabu_tenure = DEFAULT_TT;
 } /*initInst*/
 
@@ -199,9 +172,9 @@ bool parse_cmd(int argc, char** argv, instance *inst) {
 		} /*set input file*/
 		if(strcmp(argv[i],"-m") == 0){
 			if(strcmp(argv[++i], "greedy") == 0)
-				inst->mode = GREEDY;
+				inst->heur_mode = GREEDY;
 			else if(strcmp(argv[i], "grasp") == 0)
-				inst->mode = GRASP;
+				inst->heur_mode = GRASP;
 			invalid_opt = false;
 			continue;
 		} /*set algorithm to solve inst.*/
@@ -215,6 +188,11 @@ bool parse_cmd(int argc, char** argv, instance *inst) {
 			invalid_opt = false;
 			continue;
 		} /*set random seed*/
+		if(strcmp(argv[i],"-n") == 0){
+			inst->nnodes = abs(atoi(argv[++i])); 
+			invalid_opt = false;
+			continue;
+		} /*set number of random nodes*/
 		if(strcmp(argv[i],"-tt") == 0){
 			inst->tabu_tenure = abs(atoi(argv[++i])); 
 			invalid_opt = false;
@@ -241,12 +219,12 @@ bool parse_cmd(int argc, char** argv, instance *inst) {
 			continue;
 		} /*test mod.*/
 		if(strcmp(argv[i], "-two") == 0){
-			inst->two_opt = true;
+			inst->ref_mode = TWO;
 			invalid_opt = false;
 			continue;
 		} /*use two opt. alg.*/
 		if(strcmp(argv[i], "-tabu") == 0){
-			inst->tabu = true;
+			inst->ref_mode = TWO_TABU;
 			invalid_opt = false;
 			continue;
 		} /*use tabu alg.*/
@@ -340,7 +318,7 @@ void alloc_inst(instance* inst){
 
 void rand_points(instance* inst) {
 	int i;
-	inst->nnodes = MIN_NODES + rand() % (MAX_NODES - MIN_NODES + 1);
+	/*inst->nnodes = MIN_NODES + rand() % (MAX_NODES - MIN_NODES + 1);*/
 	alloc_inst(inst);
 	for(i = 0; i < inst->nnodes; i++){
 		inst->pts[i].x = rand() % MAX_COORD;
@@ -364,37 +342,22 @@ void compute_costs(instance* inst, cost fc){
 
 /*output elaboration*/
 
-int write_plotting_script(const char* fileOut, int nnodes, int ord){
-	FILE *script = fopen("gnuplot_out.p", ((ord == 0) ? "w" : "a"));
-	if (script == NULL) return myError("Couldn't create the script!", FILE_OPEN_ERR);
-	
-	if(ord == 0){
-		fprintf(script, "set terminal qt persist size 500,500\n");
-		fprintf(script, "set key off\n");
-	}
+int update_plotting_script(FILE* script, const char* fileIn, int ord){
+	char fileOut[50];
+	sprintf(fileOut, "../out/%s.dat", fileIn);
 	/*fprintf(script, ", \\\n\"\" skip %d with linespoints lc rgb %d\n", 3 + (3 * ord + 1) * nnodes, 2000 * ord);*/
     /*fprintf(script, "replot \"../out/%s.dat\" skip %d with lines lc rgbcolor %d\n", fileOut, 3 + (3 * ord + 1) * nnodes, 101101 * ord);*/
-	if(ord) fprintf(script, "replot \"../out/%s.dat\" index %d with lines lc rgbcolor 16777215 lw 3\n", fileOut, ord);
-	fprintf(script, "%splot \"../out/%s.dat\" index 0 using 2:3:1 with labels\n", (ord ? "re" : ""), fileOut);
-	fprintf(script, "replot \"../out/%s.dat\" index %d with lines lc rgb 0\n", fileOut, ord + 1);
-	fprintf(script, "pause 0.5\n");
-	
-	fclose(script);
-	return 0;
-} /*write_plotting_script*/
-
-int write_out_file(const instance* inst, const int* sol, const char* fileOut, const char* mode){
-	char fname[100];
-	FILE *out;
-	int i;
-	sprintf(fname, "../out/%s.dat", fileOut);
-	out = fopen(fname, mode);
-	if(out == NULL) return myError("Couldn't create the output file!", FILE_OPEN_ERR);
-	if(strcmp(mode, "w") == 0){
-		fprintf(out, "#NODES\n");
-		for(i = 0; i < inst->nnodes; i++)
-			fprintf(out, "%d %f %f\n", i, inst->pts[i].x, inst->pts[i].y);
+	if(ord){
+		fprintf(script, "replot \"%s\" index %d with lines lc rgbcolor 16777215 lw 3\n", fileOut, ord);
+		fprintf(script, "replot \"%s\" index 0 using 2:3:1 with labels\n", fileOut);
 	} /*if*/
+	fprintf(script, "replot \"%s\" index %d with lines lc rgb 0\n", fileOut, ord + 1);
+	fprintf(script, "pause 0.5\n");
+	return 0;
+} /*update_plotting_script*/
+
+int update_out_file(const instance* inst, const int* sol, FILE *out){
+	int i;
 	fprintf(out, "\n\n\n#EDGES\n");
 	for(i = 0; i < inst->nnodes - 1; i++){
 		fprintf(out, "%f %f\n", inst->pts[sol[i]].x, inst->pts[sol[i]].y);
@@ -402,10 +365,9 @@ int write_out_file(const instance* inst, const int* sol, const char* fileOut, co
 	} /*for*/
 	fprintf(out, "%f %f\n", inst->pts[sol[i]].x, inst->pts[sol[i]].y); /*edge closing cycle*/
 	fprintf(out, "%f %f", inst->pts[sol[0]].x, inst->pts[sol[0]].y);
-	
-	fclose(out);
+
 	return 0;
-} /*write_out_file*/
+} /*update_out_file*/
 
 
 /*freeing the memory*/
