@@ -136,14 +136,25 @@ void furthest_initialization(instance* inst, int* arr){
 	free(extrem);
 }
 
+bool unvisited_nodes(int* prev, int size){
+	for (int i=0; i<size; i++){
+		if (prev[i] == -1){
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+}
+
 double extra_mileage(instance* inst){
 
-	int firstNodeIndex =0, secondNodeIndex=0, count=0;
-	int* two_first = malloc(sizeof(int)*2);
+	int firstNodeIndex =0, secondNodeIndex=0, count=0, visitedNode = -1, newNode = -1;
+	int two_first[2];
 
 	int* prev = malloc(sizeof(int)*inst->nnodes);
 
-	double updatedCost, minCost;
+	double updatedCost, minCost, currentCost;
 	int node_iteration = 0, covered_nodes=1;
 
 	/*nodes structure*/
@@ -153,49 +164,40 @@ double extra_mileage(instance* inst){
 
 	/*finding furthest points*/
 	furthest_initialization(inst, two_first);
-	firstNodeIndex = two_first[0];
-	secondNodeIndex = two_first[1]; 
+	firstNodeIndex = 6;
+	secondNodeIndex = 16; 
 
 	prev[secondNodeIndex] = firstNodeIndex;
+	prev[firstNodeIndex] = secondNodeIndex;
 
 	/*finding closest next option*/
-	
-	while(node_iteration < inst->nnodes ){
-		if (prev[node_iteration] != -1){ /*visited node*/
-			minCost = INFINITE;
-			for (int j=0; j < inst->nnodes; j++){
-				if (prev[j] == -1 && j != 6){ /*unvisited node*/
-					updatedCost = dist(prev[node_iteration], j, inst->pts)+
-								  dist(j, node_iteration, inst->pts);
-					if (updatedCost < minCost){
-						minCost = updatedCost;
-						covered_nodes++;
-						prev[j] = prev[node_iteration];
-						prev[node_iteration] = j;
+	while(unvisited_nodes(prev, inst->nnodes)){
+		minCost = INFINITE;
+		for (int i=0; i<inst->nnodes; i++){
+			if (prev[i] == -1){ /*unvisited*/
+				for (int j=0; j<inst->nnodes; j++){
+					if (prev[j] != -1){ /*visited*/
+						currentCost = inst->costs[prev[i] * inst->nnodes + j]+inst->costs[j * inst->nnodes + i];
+						if(currentCost < minCost){
+						minCost = currentCost;
+						newNode = i;
+						visitedNode = j;
+						}
 					}
 				}
 			}
 		}
-		if (node_iteration == inst->nnodes -1 && covered_nodes != inst->nnodes -1){
-			node_iteration = 0;
-		}
-		else{
-			node_iteration++;
-		}
+		prev[newNode] = prev[visitedNode];
+		prev[visitedNode] = newNode;
 	}
 
-	for (int i=0; i <inst->nnodes; i++){
-		if (prev[i] != -1){
-			count++;
-			printf("prev node:%d", prev[i]);
-		}
-	} /*check for covering all nodes*/
 	
 	int* solution_sequence = malloc(sizeof(int) * inst->nnodes);
-	int curr_index = 16;
+	int curr_index = firstNodeIndex;
 	for (int i=0; i < inst->nnodes; i++){
 		solution_sequence[i] = curr_index;
 		curr_index = prev[curr_index];
+		printf("%d", curr_index);
 	} 	/*creating solution sequence*/
 
 	free(prev);
