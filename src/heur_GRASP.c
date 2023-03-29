@@ -141,21 +141,18 @@ bool unvisited_nodes(int* prev, int size){
 		if (prev[i] == -1){
 			return true;
 		}
-		else{
-			return false;
-		}
 	}
+	return false;
 }
 
 double extra_mileage(instance* inst){
 
-	int firstNodeIndex =0, secondNodeIndex=0, count=0, visitedNode = -1, newNode = -1;
-	int two_first[2];
+	int firstNodeIndex =0, secondNodeIndex=0, visitedNode, newNode;
+	//int two_first[2];
 
 	int* prev = malloc(sizeof(int)*inst->nnodes);
 
-	double updatedCost, minCost, currentCost;
-	int node_iteration = 0, covered_nodes=1;
+	double minCost, currentCost;
 
 	/*nodes structure*/
 	for (int i=0; i<inst->nnodes; i++){
@@ -163,7 +160,7 @@ double extra_mileage(instance* inst){
 	}
 
 	/*finding furthest points*/
-	furthest_initialization(inst, two_first);
+	//furthest_initialization(inst, two_first);
 	firstNodeIndex = 6;
 	secondNodeIndex = 16; 
 
@@ -177,7 +174,7 @@ double extra_mileage(instance* inst){
 			if (prev[i] == -1){ /*unvisited*/
 				for (int j=0; j<inst->nnodes; j++){
 					if (prev[j] != -1){ /*visited*/
-						currentCost = inst->costs[prev[i] * inst->nnodes + j]+inst->costs[j * inst->nnodes + i];
+						currentCost = inst->costs[prev[j] * inst->nnodes + i] + inst->costs[i * inst->nnodes + j];
 						if(currentCost < minCost){
 						minCost = currentCost;
 						newNode = i;
@@ -192,12 +189,12 @@ double extra_mileage(instance* inst){
 	}
 
 	int* solution_sequence = malloc(sizeof(int) * inst->nnodes);
-	int curr_index = firstNodeIndex;
+	int curr_index = 6;
 	for (int i=0; i < inst->nnodes; i++){
-		solution_sequence[i] = curr_index;
+		solution_sequence[i] = prev[curr_index];
 		curr_index = prev[curr_index];
-		printf("%d", curr_index);
 	} 	/*creating solution sequence*/
+	plot_sol(inst, solution_sequence, inst->nnodes);
 
 	free(prev);
 	free(solution_sequence);
