@@ -1,6 +1,23 @@
 #include "tsp.h"
 #include <stdbool.h>
 
+/*greedy heur. modes*/
+const char heur_modes[2][50] =
+{
+	"greedy",
+    "GRASP"
+};
+
+/*ref. heur. and metaheur.*/
+const char ref_modes[2][50] =
+{
+	"two opt.",
+    "two opt. plus tabu"
+};
+
+
+
+
 /*utilities*/
 
 double dist(int i, int j, const point* pts) {
@@ -125,11 +142,17 @@ void updateBest(double z, const int* sol, instance* inst){
 /* input elaboration*/
 
 void cmdHelp() {
+	int i;
 	printf("\n--Available options:--\n -f to set input file (.tsp, not to be written); if not specified, randomly generated\n");
 	printf(" -n to set number of nodes to be randomly generated\n");
 	printf(" -rs to set random seed\n -p to set probability\n -tl to set overall time limit\n");
 	printf(" -m to set solving algorithm (lowercase)\n");
-	printf(" -two to apply two opt. alg. to refine the solution\n");
+	printf("    options: ");
+	for(i = 0; i < N_HEUR; i++) printf("%s * ", heur_modes[i]);
+	printf("\n -r to set refinement and metaheur. algorithm (lowercase)\n");
+	printf("    options: ");
+	for(i = 0; i < N_REF; i++) printf("%s * ", ref_modes[i]);
+	printf("\n -two to apply two opt. alg. to refine the solution\n");
 	printf(" -tabu to use tabu alg. to escape local mins. (with -two option)\n -tt to set tabu tenure(with -tabu option)\n");
     printf(" -test to run in test mode\n -ns to set number of runs to perform (with -test opt.)\n");
 	printf(" -help to see options\n");
@@ -218,16 +241,14 @@ bool parse_cmd(int argc, char** argv, instance *inst) {
 			invalid_opt = false;
 			continue;
 		} /*test mod.*/
-		if(strcmp(argv[i], "-two") == 0){
-			inst->ref_mode = TWO;
+		if(strcmp(argv[i],"-r") == 0){
+			if(strcmp(argv[++i], "two") == 0)
+				inst->ref_mode = TWO;
+			else if(strcmp(argv[i], "tabu") == 0)
+				inst->ref_mode = TWO_TABU;
 			invalid_opt = false;
 			continue;
-		} /*use two opt. alg.*/
-		if(strcmp(argv[i], "-tabu") == 0){
-			inst->ref_mode = TWO_TABU;
-			invalid_opt = false;
-			continue;
-		} /*use tabu alg.*/
+		} /*set algorithm to refine sol.*/
 		if(strcmp(argv[i],"-help") == 0) invalid_opt = false;
 		else if(invalid_opt) printf("\nINVALID OPTION:");
 		cmdHelp();

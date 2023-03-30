@@ -35,9 +35,12 @@
 
 /*heur. ref. modes*/
 
-#define NOTHING 0
-#define TWO 1
-#define TWO_TABU 2
+#define NOTHING -1
+#define TWO 0
+#define TWO_TABU 1
+
+#define N_HEUR 2
+#define N_REF 2
 
 
 /*data structures*/
@@ -79,6 +82,12 @@ typedef struct {
 	int* best_sol; 
 	int best_prob;
 } instance;	
+
+/*greedy heuristics*/
+const char heur_modes[2][50];
+/*ref. heur. and metaheur.*/
+const char ref_modes[2][50];
+
 
 /*cost functions*/
 

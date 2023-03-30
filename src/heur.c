@@ -3,27 +3,8 @@
 
 #define SOLV_PERC 0.2
 
-/*global*/
 
-double (*pickers[2])(int i, int nearest_prob, int* sol, const instance* inst) = 
-{
-	greedy_picker,
-	grasp_picker
-};
-	
-const char heur_mods[2][50] =
-{
-	"greedy",
-    "GRASP"
-};
-
-double (*kickers[1])(const instance*, int*, int*, int) = 
-{
-	tabu_kicker
-};
-
-
-/*heuristic node pickers*/
+/*greedy heuristics node pickers*/
 
 double greedy_picker(int i, int nearest_prob, int* sol, const instance* inst){ /*just a wrapper to use node_picker standard*/
 	return minCost(i, sol, inst);
@@ -36,8 +17,14 @@ double grasp_picker(int i, int nearest_prob, int* sol, const instance* inst){
 		return secMinCost(i, sol, inst);
 } /*grasp_picker*/
 
+double (*pickers[2])(int i, int nearest_prob, int* sol, const instance* inst) = 
+{
+	greedy_picker,
+	grasp_picker
+};
 
-/*solver*/
+
+/*greedy solver*/
 
 void gr_solve(instance* inst, int* sol, int prob, node_picker chooseNode){
 	double z = 0;
@@ -72,11 +59,16 @@ double impr(double* costs, int* sol, int i, int j, int n){
 } /*impr*/
 
 
-/*kickers from local min.*/
+/*metaheuristics*/
 
-double tabu_kicker(const instance* inst, int* sol, int* tabu_list, int iter){
+double (*meta_moves[1])(const instance*, int*, int*, int) = 
+{
+	tabu_move
+};
+
+double tabu_move(const instance* inst, int* sol, int* tabu_list, int iter){
 	return two_opt_move(inst, sol, tabu_list, iter, true);
-} /*tabu_kicker*/
+} /*tabu_move*/
 
 
 /*tabu utilities*/
@@ -144,10 +136,10 @@ void refine(instance* inst, int* sol){
 		} /*if*/
 		else{
 			if(inst->ref_mode == TWO) stop = true;
-			else z_curr -= kickers[inst->ref_mode - 2](inst, sol, tabu_list, iter);
+			else z_curr -= meta_moves[inst->ref_mode - 1](inst, sol, tabu_list, iter); /*ref. with metaheur. correspond to constants >= 1*/
 		} /*else*/
 		/*printf("Iter. %d ended with z_curr = %f\n", iter, z_curr);*/
-		fprintf(stats, "%d %f\n", iter, z_curr);
+		if(iter < 5000) fprintf(stats, "%d %f\n", iter, z_curr);
 		iter++;
 	}while(!stop && (time(NULL) < end_time));
 	
@@ -171,7 +163,8 @@ int open_init_stats(FILE** stats, const instance* inst){
 	fprintf(stats_script, "set terminal qt persist size 1000,500\n");
 	fprintf(stats_script, "set xlabel \"Iteration of refinement phase\"\nshow xlabel\n");
 	fprintf(stats_script, "set ylabel \"Cost of solution\"\nshow ylabel\n");
-	fprintf(stats_script, "plot \"%s\" with points pointtype 0\n", out_name);
+	fprintf(stats_script, "plot \"%s\" with linespoints pointtype 0\n", out_name);
+	/*fprintf(stats_script, "plot \"%s\" with points pointtype 0\n", out_name);*/
 	
 	fclose(stats_script);
 	return 0;
@@ -184,12 +177,9 @@ int open_out_files(instance* inst, FILE** out, FILE** script){
 	
 	*out = fopen(out_name, "w");
 	if(*out == NULL) return myError("Couldn't create the output file!", FILE_OPEN_ERR);
-	fprintf(*out, "#MODE: %s", heur_mods[inst->heur_mode]);
-	if(inst->ref_mode != NOTHING){
-		fprintf(*out, " with 2opt refinement");
-		if(inst->ref_mode == TWO_TABU)
-			fprintf(*out, "and tabu search");
-	}
+	fprintf(*out, "#MODE: %s", heur_modes[inst->heur_mode]);
+	if(inst->ref_mode != NOTHING)
+		fprintf(*out, " with %s", ref_modes[inst->ref_mode]);
 	fprintf(*out, "\n#NODES\n");
 	for(i = 0; i < inst->nnodes; i++)
 		fprintf(*out, "%d %f %f\n", i, inst->pts[i].x, inst->pts[i].y);
