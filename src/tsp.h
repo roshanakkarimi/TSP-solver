@@ -17,16 +17,17 @@
 #define EPSILON 0.00001
 #define DEFAULT_RAND 1
 #define DEFAULT_TT 15
-#define MIN_NODES 75
-#define MAX_NODES 150
+#define DEFAULT_TL 300
+#define N_DEF_NODES 5000
 #define MAX_COORD 7500
 
-/*errors*/
+/*fatal errors*/
 
 #define FILE_OPEN_ERR 1
 #define FILE_STRUCT_ERR 2
 #define FORMAT_ERR 3
 #define INDEX_ERR 4
+#define COMM_ERR 5
 
 /*heur. modes*/
 

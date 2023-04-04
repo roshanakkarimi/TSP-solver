@@ -3,21 +3,25 @@
 
 #include "tsp.h"
 
+/*specific errors*/
+
+#define SKIP_REF_ERR 11
+
 /*greedy heuristics and node pickers*/
 
-typedef double (*node_picker)(int i, int nearest_prob, int* sol, const instance* inst);
-double (*pickers[2])(int, int, int*, const instance*);
-double greedy_picker(int, int, int*, const instance*); /*just a wrapper to use node_picker standard*/
-double grasp_picker(int, int, int*, const instance*);
+typedef double (*node_picker)(int i, int* sol, const instance* inst);
+double (*pickers[2])(int, int*, const instance*);
+double greedy_picker(int, int*, const instance*); /*just a wrapper to use node_picker standard*/
+double grasp_picker(int, int*, const instance*);
 
 /*greedy solver*/
 
-void gr_solve(instance*, int*, int, node_picker);
+void gr_solve(instance*, int*, node_picker);
 
 /*refinement*/
 
 double two_opt_move(const instance*, int*, int*, int, bool);
-void refine(instance*, int*);
+void refine(instance*, int*, bool);
 
 /*refinement utilities*/
 

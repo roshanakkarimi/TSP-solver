@@ -90,7 +90,10 @@ double secMinCost(int i, int* sol, const instance* inst){
 /*managing errors and debug*/
 
 int myError(const char* err, int errType){
-	printf("\nFATAL ERROR:\n%s", err);
+	if(errType <= 10)
+		printf("\nFATAL ERROR:\n%s", err);
+	else
+		printf("\nWARNING:\n%s", err);
 	return errType;
 } /*myError*/
 
@@ -152,9 +155,9 @@ void cmdHelp() {
 	printf("\n -r to set refinement and metaheur. algorithm (lowercase)\n");
 	printf("    options: ");
 	for(i = 0; i < N_REF; i++) printf("%s * ", ref_modes[i]);
-	printf("\n -two to apply two opt. alg. to refine the solution\n");
-	printf(" -tabu to use tabu alg. to escape local mins. (with -two option)\n -tt to set tabu tenure(with -tabu option)\n");
-    printf(" -test to run in test mode\n -ns to set number of runs to perform (with -test opt.)\n");
+	/*printf("\n -two to apply two opt. alg. to refine the solution\n");
+	printf(" -tabu to use tabu alg. to escape local mins. (with -two option)\n -tt to set tabu tenure(with -tabu option)\n");*/
+    printf("\n -test to run in test mode\n -ns to set number of runs to perform (with -test opt.)\n");
 	printf(" -help to see options\n");
 } /*help*/
 
@@ -171,8 +174,9 @@ void dispPars(const instance* inst) {
 void initInst(instance *inst) {
 	strcpy(inst->fileIn, "\0");
 	inst->verbosity = 1;
+	inst->nnodes = N_DEF_NODES;
 	inst->randseed = DEFAULT_RAND;
-	inst->timelimit = 300;
+	inst->timelimit = DEFAULT_TL;
 	inst->zbest = INFINITE_DBL;
 	inst->n_sim = 1;
 	inst->prob = 100;
@@ -339,8 +343,6 @@ void alloc_inst(instance* inst){
 
 void rand_points(instance* inst) {
 	int i;
-	/*inst->nnodes = MIN_NODES + rand() % (MAX_NODES - MIN_NODES + 1);*/
-	alloc_inst(inst);
 	for(i = 0; i < inst->nnodes; i++){
 		inst->pts[i].x = rand() % MAX_COORD;
 		inst->pts[i].y = rand() % MAX_COORD;
@@ -366,8 +368,6 @@ void compute_costs(instance* inst, cost fc){
 int update_plotting_script(FILE* script, const char* fileIn, int ord){
 	char fileOut[50];
 	sprintf(fileOut, "../out/%s.dat", fileIn);
-	/*fprintf(script, ", \\\n\"\" skip %d with linespoints lc rgb %d\n", 3 + (3 * ord + 1) * nnodes, 2000 * ord);*/
-    /*fprintf(script, "replot \"../out/%s.dat\" skip %d with lines lc rgbcolor %d\n", fileOut, 3 + (3 * ord + 1) * nnodes, 101101 * ord);*/
 	if(ord){
 		fprintf(script, "replot \"%s\" index %d with lines lc rgbcolor 16777215 lw 3\n", fileOut, ord);
 		fprintf(script, "replot \"%s\" index 0 using 2:3:1 with labels\n", fileOut);
