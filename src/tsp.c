@@ -131,15 +131,17 @@ bool checkSol(double z, const int* sol, const instance* inst){
 
 /*solving*/
 
-void updateBest(double z, const int* sol, instance* inst){
+bool updateBest(double z, const int* sol, instance* inst){
 	int i;
 	if(checkSol(z, sol, inst)){ 
 		if(z < inst->zbest) {
 		inst->zbest = z;
 		for(i = 0; i < inst->nnodes; i++)
 			inst->best_sol[i] = sol[i];
+		return true;
 		} /*if*/
 	} /*if*/
+	return false;
 } /*updateBest*/
 
 /* input elaboration*/
@@ -179,10 +181,11 @@ void initInst(instance *inst) {
 	inst->timelimit = DEFAULT_TL;
 	inst->zbest = INFINITE_DBL;
 	inst->n_sim = 1;
-	inst->prob = 100;
+	inst->prob = 80;
 	inst->heur_mode = GRASP;
 	inst->ref_mode = NOTHING;
 	inst->tabu_tenure = DEFAULT_TT;
+	inst->gr_start = -1;
 } /*initInst*/
 
 bool parse_cmd(int argc, char** argv, instance *inst) {

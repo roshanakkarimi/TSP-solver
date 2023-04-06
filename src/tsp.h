@@ -17,7 +17,7 @@
 #define EPSILON 0.00001
 #define DEFAULT_RAND 1
 #define DEFAULT_TT 15
-#define DEFAULT_TL 300
+#define DEFAULT_TL 100
 #define N_DEF_NODES 5000
 #define MAX_COORD 7500
 
@@ -76,6 +76,7 @@ typedef struct {
 	
 /*running pars.*/
 	double t_start;
+	int gr_start;
 	
 /*results*/
 	double zbest; /*best value for the obj. function*/
@@ -123,7 +124,7 @@ bool checkSol(double, const int*, const instance*);
 
 /*solving*/
 
-void updateBest(double, const int*, instance*);
+bool updateBest(double, const int*, instance*);
 
 /*output elaboration*/
 

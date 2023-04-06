@@ -5,10 +5,10 @@
 
 int main(int argc, char **argv){
 	int i, j;
-	int* sol;
+	int *sol, *gr_sol;
 	FILE* stats;
 	instance* inst;
-	double zbests[N_COMP], t;
+	double zbests[N_COMP], t, gr_z;
 	char comp_modes[N_COMP][100] =
 	{
 		"determ. greedy",
@@ -25,6 +25,8 @@ int main(int argc, char **argv){
 	assert(inst != NULL);
 	sol = malloc(N_DEF_NODES * sizeof(int));
 	assert(sol != NULL);
+	gr_sol = malloc(N_DEF_NODES * sizeof(int));
+	assert(gr_sol != NULL);
 	
 	/*stats file initialization*/
 	stats = fopen("../pp/heur_perf.csv", "w");
@@ -37,34 +39,48 @@ int main(int argc, char **argv){
 	initInst(inst);
 	alloc_inst(inst);
 	
-	inst->timelimit = 5; /*input?*/
+	inst->timelimit = DEFAULT_TL; /*input?*/
 	
 	srand(inst->randseed);
 	
 	for(i = 0; i < atoi(argv[1]); i++){		
 		rand_points(inst);
 		compute_costs(inst, (cost)sq_dist);
-		printf("---------------------------\nStarting elaboration on instance %d out of %d\n", i+1, atoi(argv[1]));
+		printf("---------------------------\nStarting elaboration on instance %d out of %d...\n", i+1, atoi(argv[1]));
 		t = time(NULL);
 		
 		inst->zbest = INFINITE_DBL; /*greedy initializ.*/
 		inst->t_start = time(NULL);
-		gr_solve(inst, sol, (node_picker)greedy_picker);
+		inst->heur_mode = GREEDY;
+		gr_solve(inst, sol);
 		zbests[0] = inst->zbest;
+		printf("greedy took %f secs\n", time(NULL)-inst->t_start);
 		
 		inst->zbest = INFINITE_DBL; /*grasp greedy initializ.*/
 		inst->t_start = time(NULL);
-		gr_solve(inst, sol, (node_picker)grasp_picker);
+		inst->heur_mode = GRASP;
+		gr_solve(inst, sol);
 		zbests[1] = inst->zbest;
+		printf("grasp took %f secs\n", time(NULL)-inst->t_start);
 		
+		for(j = 0; j < N_DEF_NODES; j++)
+			gr_sol[j] = inst->best_sol[j];
+		gr_z = inst->zbest;
+		
+		inst->t_start = time(NULL);
 		inst->ref_mode = TWO;
 		refine(inst, sol, false);
 		zbests[2] = inst->zbest;
+		printf("2opt took %f secs\n", time(NULL)-inst->t_start);
 		
+		for(j = 0; j < N_DEF_NODES; j++)
+			inst->best_sol[j] = gr_sol[j];
+		inst->zbest = gr_z;
 		inst->t_start = time(NULL);
 		inst->ref_mode = TWO_TABU;
-		refine(inst, sol, false);
+		refine(inst, gr_sol, false);
 		zbests[3] = inst->zbest;
+		printf("2opt plus tabu took %f secs\n", time(NULL)-inst->t_start);
 		
 		printf("Elaboration of instance %d out of %d ended in %f secs\n", i+1, atoi(argv[1]), time(NULL)-t);
 		fprintf(stats, "\nrand_%d", i);

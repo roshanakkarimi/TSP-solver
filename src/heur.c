@@ -25,7 +25,7 @@ int main(int argc, char **argv)
 	open_out_files(inst, &out, &script);
 	
 	inst->t_start = time(NULL);
-	gr_solve(inst, sol, (node_picker)pickers[inst->heur_mode]);
+	gr_solve(inst, sol);
 	update_plotting_script(script, inst->fileIn, 0);
 	update_out_file(inst, inst->best_sol, out);
 	

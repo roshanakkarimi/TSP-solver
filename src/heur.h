@@ -10,13 +10,12 @@
 /*greedy heuristics and node pickers*/
 
 typedef double (*node_picker)(int i, int* sol, const instance* inst);
-double (*pickers[2])(int, int*, const instance*);
 double greedy_picker(int, int*, const instance*); /*just a wrapper to use node_picker standard*/
 double grasp_picker(int, int*, const instance*);
 
 /*greedy solver*/
 
-void gr_solve(instance*, int*, node_picker);
+void gr_solve(instance*, int*);
 
 /*refinement*/
 
@@ -30,7 +29,6 @@ double impr(double*, int*, int, int, int);
 
 /*metaheuristics*/
 
-double (*meta_moves[1])(const instance*, int*, int*, int);
 double tabu_move(const instance*, int*, int*, int);
 
 /*tabu utilities*/

@@ -16,28 +16,45 @@ double grasp_picker(int i, int* sol, const instance* inst){
 		return secMinCost(i, sol, inst);
 } /*grasp_picker*/
 
-double (*pickers[2])(int i, int* sol, const instance* inst) = 
-{
-	greedy_picker,
-	grasp_picker
-};
-
 
 /*greedy solver*/
 
-void gr_solve(instance* inst, int* sol, node_picker chooseNode){
+void gr_solve(instance* inst, int* sol){
 	double z = 0;
 	int j, n = inst->nnodes;
-	while(time(NULL) - inst->t_start < inst->timelimit * SOLV_PERC){
+	
+	for(j = 0; j < n; j++)
+		sol[j] = j;
+	if(inst->gr_start == -1)
+		inst->gr_start = rand() % n;
+	swapInt(sol, sol + inst->gr_start);
+	
+	for(j = 0; j < n - 2; j++)
+		z += greedy_picker(j, sol, inst);
+	z += inst->costs[sol[j] * n + sol[j + 1]] + inst->costs[sol[j + 1] * n + sol[0]]; 
+	updateBest(z, sol, inst);
+	
+	if(inst->heur_mode == GRASP)
+		while(time(NULL) - inst->t_start < inst->timelimit * SOLV_PERC){
+			z = 0;
+			for(j = 0; j < n; j++)
+				sol[j] = inst->best_sol[j];
+			for(j = 0; j < n - 2; j++)
+				z += grasp_picker(j, sol, inst);
+			z += inst->costs[sol[j] * n + sol[j + 1]] + inst->costs[sol[j + 1] * n + sol[0]]; 
+			updateBest(z, sol, inst);
+		}/*while*/
+	
+	/*while(time(NULL) - inst->t_start < inst->timelimit * SOLV_PERC){
 		z = 0;
 		for(j = 0; j < n; j++)
 			sol[j] = j;
 		swapInt(sol, sol + rand() % n);
 		for(j = 0; j < n - 2; j++)
 			z += chooseNode(j, sol, inst);
-		z += inst->costs[sol[j] * n + sol[j + 1]] + inst->costs[sol[j + 1] * n + sol[0]]; /*add last two edges costs, which don't need computation*/
+		z += inst->costs[sol[j] * n + sol[j + 1]] + inst->costs[sol[j + 1] * n + sol[0]]; 
 		updateBest(z, sol, inst);
-	}
+	}*/
 } /*gr_solve*/
 
 
@@ -59,11 +76,6 @@ double impr(double* costs, int* sol, int i, int j, int n){
 
 
 /*metaheuristics*/
-
-double (*meta_moves[1])(const instance*, int*, int*, int) = 
-{
-	tabu_move
-};
 
 double tabu_move(const instance* inst, int* sol, int* tabu_list, int iter){
 	return two_opt_move(inst, sol, tabu_list, iter, true);
@@ -99,15 +111,16 @@ double two_opt_move(const instance* inst, int* sol, int* tabu_list, int iter, bo
 				} /*if*/
 	if(max_impr > 0 || second_best) /*only after real improvements, or tabu moves*/
 		reverse_sub(sol, e1, (e2 + n - 1) % n, n);
-	if(inst->ref_mode == TWO_TABU && second_best){
+	if(second_best && inst->ref_mode == TWO_TABU){
 		while(tabu_list[i = choose_tabu(sol, e1, e2, n)] > iter){} /*set tabu only if not already tabu*/
 		tabu_list[i] = iter + inst->tabu_tenure;
 	} /*if*/
-	if(second_best)
-		return max_impr; /*could be negative*/
+	/*if(second_best)
+		return max_impr; 
 	else if(max_impr > 0)
 		return max_impr;
-	return 0.0;
+	return 0.0;*/
+	return max_impr;
 } /*two_opt_move*/ 
 
 void refine(instance* inst, int* sol, bool outF){ 
@@ -143,7 +156,7 @@ void refine(instance* inst, int* sol, bool outF){
 		} /*if*/
 		else{
 			if(inst->ref_mode == TWO) stop = true;
-			else z_curr -= meta_moves[inst->ref_mode - 1](inst, sol, tabu_list, iter); /*ref. with metaheur. correspond to constants >= 1*/
+			else z_curr -= tabu_move(inst, sol, tabu_list, iter);
 		} /*else*/
 		if(outF && iter < 5000) fprintf(stats, "%d %f\n", iter, z_curr);
 		iter++;
