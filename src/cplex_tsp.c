@@ -12,10 +12,53 @@
 #define DEBUG    // comment out to avoid debugging 
 #define EPS 1e-5
 
+void build_sol(const double *xstar, instance *inst, int *succ, int *comp, int *ncomp) // build succ() and comp() wrt xstar()...
+{   
+	*ncomp = 0;
+	for ( int i = 0; i < inst->nnodes; i++ )
+	{
+		succ[i] = -1;
+		comp[i] = -1;
+	}
+	
+	for ( int start = 0; start < inst->nnodes; start++ )
+	{
+		if ( comp[start] >= 0 ) continue;  // node "start" was already visited, just skip it
+
+		// a new component is found
+		(*ncomp)++;
+		int i = start;
+		int done = 0;
+		while ( !done )  // go and visit the current component
+		{
+			comp[i] = *ncomp;
+			done = 1;
+			for ( int j = 0; j < inst->nnodes; j++ )
+			{
+				if ( i != j && xstar[xpos(i,j,inst)] > 0.5 && comp[j] == -1 ) // the edge [i,j] is selected in xstar and j was not visited before 
+				{
+					succ[i] = j;
+					i = j;
+					done = 0;
+					break;
+				}
+			}
+		}	
+		succ[i] = start;  // last arc to close the cycle
+		
+		// go to the next component...
+	}
+}
+
 int main(int argc, char **argv)
 {
 	// initializing the tsp instance
 	instance* inst = malloc(sizeof(instance));
+	int* succ = malloc(sizeof(int)*inst->nnodes);
+	int* comp = malloc(sizeof(int)*inst->nnodes);
+	int ncomp;
+
+//first try
 	initInst(inst);
 	parse_cmd(argc, argv, inst);
 	read_fileIn(inst);
@@ -27,25 +70,58 @@ int main(int argc, char **argv)
 	CPXLPptr lp = CPXcreateprob(env, &error, "TSP model version 1"); //empty linear program model (pointer)
 	if ( error ) print_error("CPXcreateprob() error"); 
 
-	// create Cplex model
-	build_model(inst, env, lp);
+	build_model(inst, env, lp, false, succ, comp, &ncomp, "model1.lp");
 
 	// setting up the cplex parameters
 	initCplex(inst,env);
 	
-	error = CPXmipopt(env,lp); //optimize the mixed integer program env, lp
-	if ( error ) 
-	{
-		printf("CPX error code %d\n", error);
-		print_error("CPXmipopt() error"); 
-	} // infeasibility is not an error
-
-	// use the optimal solution found by CPLEX
+	CPXsolver(inst, env, lp);
 	
+	// use the optimal solution found by CPLEX
 	int ncols = CPXgetnumcols(env, lp);
 	double *xstar = (double *) calloc(ncols, sizeof(double));
 	if ( CPXgetx(env, lp, xstar, 0, ncols-1) /*from 0 to ncols-1 of xstar will be filled */ ) print_error("CPXgetx() error");	
-	for ( int i = 0; i < inst->nnodes; i++ )
+	
+	build_sol(xstar, inst, succ, comp, &ncomp);
+
+	// free and close cplex model   
+	CPXfreeprob(env, &lp); //based on the sequence (reversed)
+	CPXcloseCPLEX(&env); 
+
+//after component try
+	if ( ncomp > 1){
+	// open CPLEX model
+		int error;
+		CPXENVptr env = CPXopenCPLEX(&error); // creating environment of problem (pointer), error = 0 if no problems (enough memory and ,...)
+		if ( error ) print_error("CPXopenCPLEX() error"); //
+		CPXLPptr lp = CPXcreateprob(env, &error, "TSP model version 1"); //empty linear program model (pointer)
+		if ( error ) print_error("CPXcreateprob() error"); 
+
+		build_model(inst, env, lp, false, succ, comp, &ncomp, "model2.lp");
+
+	// setting up the cplex parameters
+		initCplex(inst,env);
+		CPXsolver(inst, env, lp);
+	
+	// use the optimal solution found by CPLEX
+		int ncols = CPXgetnumcols(env, lp);
+		double *xstar = (double *) calloc(ncols, sizeof(double));
+		if ( CPXgetx(env, lp, xstar, 0, ncols-1) /*from 0 to ncols-1 of xstar will be filled */ ) print_error("CPXgetx() error");	
+	
+
+	// free and close cplex model   
+		CPXfreeprob(env, &lp); //based on the sequence (reversed)
+		CPXcloseCPLEX(&env); 
+	}
+	
+	free(succ);
+	free(comp);
+	free(xstar);
+	freeInst(inst);
+}
+
+/*
+for ( int i = 0; i < inst->nnodes; i++ )
 	{
 		for ( int j = i+1; j < inst->nnodes; j++ )
 		{
@@ -53,16 +129,7 @@ int main(int argc, char **argv)
             // > 0.5 because approximate arithmetic is not exactly 0 or 1 but in a specfific threshold > 0.5 equals to 1 and otherwise is 0
 		}
 	}
-	free(xstar);
-	
-	// free and close cplex model   
-	CPXfreeprob(env, &lp); //based on the sequence (reversed)
-	CPXcloseCPLEX(&env); 
-
-	freeInst(inst);
-}
-
-
+	*/
 /*
 **** LAZY CONTRAINTS IN THE INPUT MODEL ****
 
